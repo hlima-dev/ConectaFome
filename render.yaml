@@ -1,6 +1,6 @@
 # Blueprint do Render pro backend do ConectaFome.
 # Uso: no dashboard do Render, "New +" → "Blueprint" → conectar o repo
-# hlima-dev/conectfome → o Render lê este arquivo e monta o serviço abaixo.
+# hlima-dev/ConectaFome → o Render lê este arquivo e monta o serviço abaixo.
 # O banco (Postgres) é externo — Supabase, do mesmo jeito que o ATHLO usa —
 # porque o Postgres gratuito do próprio Render expira depois de 30 dias.
 # DATABASE_URL e CORS_ORIGINS ficam marcados "sync: false": o Render pede

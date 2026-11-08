@@ -58,7 +58,7 @@ const s1 = [
     ['Orientadora', 'Brenda Medina de Oliveira'],
     ['Integrantes', ['João Albuquerque de Meneses – RA 252930', 'Lucas Lima Santos – RA 263999', 'Vitor Gimenez – RA 248707']],
     ['ODS relacionados', 'ODS 2 – Fome Zero e Agricultura Sustentável; ODS 12 – Consumo e Produção Responsáveis'],
-    ['Código-fonte', 'github.com/hlima-dev/ConectFome (monorepo: backend/ e frontend/)'],
+    ['Código-fonte', 'github.com/hlima-dev/ConectaFome (monorepo: backend/ e frontend/)'],
   ]),
   spacer(),
 ]

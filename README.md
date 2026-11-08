@@ -1,5 +1,8 @@
 # 🍎 ConectaFome
 
+**Acesse o sistema:** https://conecta-fome.vercel.app  
+_(o primeiro acesso pode levar cerca de 1 minuto: o servidor gratuito "dorme" quando fica sem uso.)_
+
 Plataforma de doação e resgate de alimentos que conecta **doadores**
 (mercados, restaurantes, feiras) a **receptores** (ONGs e famílias em
 situação de vulnerabilidade), redistribuindo alimentos que seriam
@@ -36,7 +39,7 @@ aqui veículo/voluntário/rota de coleta), reimplementados em Prisma —
 não código copiado, já que os stacks de origem são diferentes.
 
 ```
-conectfome/
+ConectaFome/
 ├── backend/                  # Node + Express + TypeScript + Prisma + PostgreSQL
 │   ├── prisma/
 │   │   ├── schema.prisma     # 9 modelos, 8 enums
@@ -182,8 +185,8 @@ uma declaração: o sistema não mede temperatura.
 Pré-requisitos: Node 20+, PostgreSQL 16+.
 
 ```bash
-git clone https://github.com/hlima-dev/ConectFome.git
-cd ConectFome
+git clone https://github.com/hlima-dev/ConectaFome.git
+cd ConectaFome
 
 # banco de dados
 sudo -u postgres psql -c "CREATE ROLE conectfome LOGIN PASSWORD 'conectfome';"

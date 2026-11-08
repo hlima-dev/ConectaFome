@@ -21,7 +21,7 @@ smoke test abaixo depois de publicar para confirmar.
 | Variável | Valor |
 |---|---|
 | `DATABASE_URL` | connection string do Supabase |
-| `CORS_ORIGINS` | URL do frontend, sem barra no final (ex.: `https://conectfome.vercel.app`). Vários separados por vírgula; qualquer `*.vercel.app` em https já é aceito |
+| `CORS_ORIGINS` | URL do frontend, sem barra no final (ex.: `https://conecta-fome.vercel.app`). Vários separados por vírgula; qualquer `*.vercel.app` em https já é aceito |
 | `APP_URL` | a mesma URL do frontend |
 | `ADMIN_EMAIL` | e-mail do primeiro administrador |
 | `ADMIN_PASSWORD` | senha forte (12+ caracteres). **Não use `Conect@123`**: o seed recusa |

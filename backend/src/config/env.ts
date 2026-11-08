@@ -28,7 +28,7 @@ const envSchema = z.object({
     .optional()
     .transform((value) => (value === undefined ? undefined : value === 'true')),
   GEOCODING_URL: z.string().url().default('https://nominatim.openstreetmap.org/search'),
-  GEOCODING_USER_AGENT: z.string().default('ConectaFome/1.0 (projeto academico; github.com/hlima-dev/ConectFome)'),
+  GEOCODING_USER_AGENT: z.string().default('ConectaFome/1.0 (projeto academico; github.com/hlima-dev/ConectaFome)'),
 })
 
 const _env = envSchema.safeParse(process.env)

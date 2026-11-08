@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Teste de fumaça de um ambiente publicado (ou local).
 # Uso: scripts/smoke.sh <URL_DA_API> <URL_DO_FRONTEND> [admin_email admin_senha]
-# Ex.:  scripts/smoke.sh https://conectfome-backend.onrender.com https://conectfome.vercel.app
+# Ex.:  scripts/smoke.sh https://conectfome-backend.onrender.com https://conecta-fome.vercel.app
 # Sai com código != 0 se algo falhar.
 set -u
 API="${1:?informe a URL da API}"; WEB="${2:?informe a URL do frontend}"; EMAIL="${3:-}"; PASS="${4:-}"
