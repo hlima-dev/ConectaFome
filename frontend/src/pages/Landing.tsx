@@ -1,6 +1,10 @@
 import { Link } from 'react-router-dom'
 import { Boxes, HandHeart, MapPinned, ReceiptText, Recycle, Soup, Sprout, Truck, Warehouse } from 'lucide-react'
 import { Logo } from '../components/Logo'
+import heroImg from '../assets/landing/hero.webp'
+import correnteImg from '../assets/landing/corrente.webp'
+import voluntariosImg from '../assets/landing/voluntarios.webp'
+import maosImg from '../assets/landing/maos.webp'
 
 const steps = [
   { icon: Warehouse, title: 'O doador registra', text: 'Mercados, restaurantes e feiras cadastram o excedente com validade, janela de coleta e condição de armazenamento.' },
@@ -64,22 +68,16 @@ export function Landing() {
               </ul>
             </div>
 
-            <div className="relative mx-auto w-full max-w-md" aria-hidden="true">
-              <div className="absolute -inset-4 rounded-[2.5rem] bg-emerald-100" />
-              <div className="relative flex aspect-square items-center justify-center rounded-[2rem] bg-emerald-800 p-10">
-                <svg viewBox="0 0 220 200" className="h-full w-full">
-                  <rect x="40" y="80" width="140" height="100" rx="10" fill="#d6a96b" />
-                  <rect x="40" y="80" width="140" height="22" rx="8" fill="#c0905a" />
-                  <path d="M110 168s-26-16-31-32c-3-10 3-20 13-20 7 0 13 4 18 10 5-6 11-10 18-10 10 0 16 10 13 20-5 16-31 32-31 32z" fill="#047857" />
-                  <path d="M110 150v-12" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
-                  <path d="M110 140c0-8 5-13 13-14 0 8-5 13-13 14z" fill="#fff" />
-                  <circle cx="70" cy="62" r="26" fill="#ef4444" />
-                  <circle cx="112" cy="50" r="24" fill="#f59e0b" />
-                  <circle cx="152" cy="64" r="22" fill="#84cc16" />
-                  <path d="M70 38c4-8 10-10 14-10" stroke="#166534" strokeWidth="4" strokeLinecap="round" fill="none" />
-                  <path d="M112 28c-2-8 2-14 8-16" stroke="#166534" strokeWidth="4" strokeLinecap="round" fill="none" />
-                </svg>
-              </div>
+            <div className="relative mx-auto w-full max-w-lg">
+              <div className="absolute -inset-3 rounded-[2.25rem] bg-emerald-100" aria-hidden="true" />
+              <img
+                src={heroImg}
+                width={960}
+                height={640}
+                fetchPriority="high"
+                alt="Voluntário de avental verde entrega uma caixa de verduras e legumes a uma mulher, enquanto outros voluntários separam alimentos ao fundo"
+                className="relative aspect-[3/2] w-full rounded-[2rem] object-cover shadow-xl"
+              />
             </div>
           </div>
         </section>
@@ -91,6 +89,14 @@ export function Landing() {
             grau de insegurança alimentar (IBGE, PNAD Contínua 2024). O ConectaFome organiza a ligação entre os dois lados: cadastro,
             reserva, coleta, entrega e registro de tudo o que foi resgatado.
           </p>
+          <img
+            src={correnteImg}
+            width={1400}
+            height={788}
+            loading="lazy"
+            alt="Ciclo do ConectaFome: empresas e doadores doam alimentos que seriam descartados, instituições e famílias recebem alimentos de qualidade e o desperdício diminui"
+            className="mx-auto mt-10 w-full rounded-3xl object-cover shadow-lg"
+          />
         </section>
 
         <section id="como-funciona" className="scroll-mt-20 bg-emerald-50 py-14">
@@ -110,6 +116,51 @@ export function Landing() {
                 </li>
               ))}
             </ol>
+          </div>
+        </section>
+
+        <section className="bg-white py-14" aria-labelledby="excedente-titulo">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <h2 id="excedente-titulo" className="text-center text-3xl font-bold text-emerald-950">Do excedente à refeição</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-center text-slate-600">
+              Cada quilo registrado é comida que deixa de ir para o lixo e chega a uma mesa.
+            </p>
+            <div className="mt-10 grid gap-6 sm:grid-cols-2">
+              <figure className="overflow-hidden rounded-3xl bg-emerald-950 shadow-lg">
+                <img
+                  src={voluntariosImg}
+                  width={640}
+                  height={960}
+                  loading="lazy"
+                  alt="Voluntários de touca e luvas montam refeições em uma mesa comprida de cozinha comunitária"
+                  className="aspect-[4/5] w-full object-cover"
+                />
+                <figcaption className="p-5 text-white">
+                  <p className="text-lg font-semibold">Muitas mãos, uma refeição</p>
+                  <p className="mt-1 text-sm text-emerald-100">Quando o excedente chega a quem sabe aproveitá-lo, vira comida pronta para quem precisa.</p>
+                  <p className="mt-3 text-xs text-emerald-300">Foto: Alexandre Cupez</p>
+                </figcaption>
+              </figure>
+              <figure className="overflow-hidden rounded-3xl bg-emerald-950 shadow-lg">
+                <img
+                  src={maosImg}
+                  width={640}
+                  height={960}
+                  loading="lazy"
+                  alt="Várias mãos abertas, uma delas segurando um punhado de arroz"
+                  className="aspect-[4/5] w-full object-cover"
+                />
+                <figcaption className="p-5 text-white">
+                  <p className="text-lg font-semibold">Para quem a fome é real</p>
+                  <p className="mt-1 text-sm text-emerald-100">Doadores, instituições e voluntários na mesma corrente, com cada entrega registrada.</p>
+                </figcaption>
+              </figure>
+            </div>
+            <div className="mt-10 text-center">
+              <Link to="/cadastro" className="inline-block rounded-lg bg-emerald-800 px-6 py-3 font-semibold text-white hover:bg-emerald-900">
+                Quero doar ou receber
+              </Link>
+            </div>
           </div>
         </section>
 
