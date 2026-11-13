@@ -2,10 +2,15 @@ import { Request, Response } from 'express'
 import { z } from 'zod'
 import { DonationStatus, FoodCategory, StorageCondition } from '@prisma/client'
 import { DonationService } from '../services/DonationService'
+import { PhotoService } from '../services/PhotoService'
+import { uploadedBuffers } from '../middlewares/upload'
 import { getPagination, successResponse } from '../utils/pagination'
 import { optionalDate } from '../utils/validation'
 
 const donationService = new DonationService()
+const photoService = new PhotoService()
+
+const photoKindSchema = z.object({ kind: z.enum(['OFERTA', 'ENTREGA']).default('OFERTA') })
 
 const createDonationSchema = z.object({
   donorId: z.string().optional(),
@@ -105,5 +110,27 @@ export class DonationController {
   async confirmReceipt(req: Request, res: Response): Promise<void> {
     const donation = await donationService.confirmReceipt(String(req.params.id), req.user!)
     res.json(successResponse(donation, 'Recebimento confirmado'))
+  }
+
+  async photos(req: Request, res: Response): Promise<void> {
+    res.json(successResponse(await photoService.list(String(req.params.id), req.user!)))
+  }
+
+  async uploadPhotos(req: Request, res: Response): Promise<void> {
+    const { kind } = photoKindSchema.parse(req.body ?? {})
+    const created = await photoService.uploadAs(String(req.params.id), kind, uploadedBuffers(req), req.user!)
+    res.status(201).json(successResponse(created, 'Foto enviada'))
+  }
+
+  async photoFile(req: Request, res: Response): Promise<void> {
+    const file = await photoService.getFile(String(req.params.id), String(req.params.photoId), req.user!)
+    res.set({
+      'Content-Type': file.contentType,
+      'Cache-Control': 'private, max-age=3600',
+      'X-Content-Type-Options': 'nosniff',
+      // O padrão do helmet (same-origin) bloquearia o <img> quando o site e a API estão em origens diferentes.
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+    })
+    res.send(file.data)
   }
 }

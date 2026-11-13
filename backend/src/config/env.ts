@@ -41,6 +41,23 @@ const envSchema = z.object({
   EMAIL_FROM: z.string().optional(),
   // Teto de e-mails por evento (uma doação nova avisa todos os receptores da cidade).
   EMAIL_MAX_PER_EVENT: z.coerce.number().int().min(1).default(30),
+  // Fotos. Em produção use o Supabase Storage (o disco do Render gratuito é apagado a
+  // cada deploy). Sem SUPABASE_URL + SUPABASE_SERVICE_KEY, grava em disco local (STORAGE_DIR),
+  // bom para desenvolvimento e testes.
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_KEY: z.string().min(20).optional(),
+  SUPABASE_BUCKET: z.string().default('doacoes'),
+  STORAGE_DIR: z.string().default('./uploads'),
+  // A doação só pode ser reservada com ao menos uma foto da oferta (ligue em produção).
+  REQUIRE_OFFER_PHOTO: z
+    .string()
+    .optional()
+    .transform((value) => value === 'true'),
+  // A coleta de uma parada só é registrada com ao menos uma foto (padrão: exige).
+  REQUIRE_PICKUP_PHOTO: z
+    .string()
+    .optional()
+    .transform((value) => (value === undefined ? true : value !== 'false')),
   APP_URL: z.string().url().default('http://localhost:5173'),
   // Geocodificação (endereço -> latitude/longitude) via Nominatim/OpenStreetMap.
   // Desligada nos testes. O serviço público limita a 1 requisição por segundo e

@@ -59,3 +59,12 @@ export async function failRouteStop(routeId: string, donationId: string, reason:
   const response = await api.patch(`/pickup-routes/${routeId}/stops/${donationId}/fail`, { reason, note })
   return response.data.data
 }
+
+export async function createFieldLink(routeId: string): Promise<{ link: string; expiresAt: string }> {
+  const response = await api.post(`/pickup-routes/${routeId}/field-link`)
+  return response.data.data
+}
+
+export async function revokeFieldLinks(routeId: string): Promise<void> {
+  await api.delete(`/pickup-routes/${routeId}/field-link`)
+}

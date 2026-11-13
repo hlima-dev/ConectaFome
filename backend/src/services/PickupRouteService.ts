@@ -343,6 +343,12 @@ export class PickupRouteService {
     return this.findById(routeId)
   }
 
+  // Confere (sem alterar nada) se a parada ainda pode ser resolvida. Usado antes de
+  // gravar fotos, para não guardar imagem de uma parada que será recusada.
+  async assertStopOpen(routeId: string, donationId: string): Promise<void> {
+    await this.getStopOrThrow(routeId, donationId)
+  }
+
   private async getStopOrThrow(routeId: string, donationId: string) {
     const route = await this.getOrThrow(routeId)
     if (route.status !== PickupRouteStatus.EM_ANDAMENTO) {

@@ -19,6 +19,7 @@ import { useRecipients } from '../../hooks/useRecipients'
 import { getStoredUser } from '../../services/auth'
 import { getErrorMessage } from '../../utils/errors'
 import { DonationTimeline } from './DonationTimeline'
+import { DonationPhotos } from '../../components/DonationPhotos'
 import { formatKg } from '../../utils/format'
 import {
   DONATION_STATUS_LABELS,
@@ -339,6 +340,12 @@ export function DonationDetailPage() {
         )}
         {isTerminal && <p className="text-sm text-slate-500">Este é um estado final, sem mais ações disponíveis.</p>}
       </div>
+
+      <DonationPhotos
+        donationId={donation.id}
+        canAddOffer={canManageAsDonor && ['DISPONIVEL', 'RESERVADA', 'AGENDADA'].includes(donation.status)}
+        canAddDelivery={canManageAsRecipient && ['COLETADA', 'ENTREGUE'].includes(donation.status)}
+      />
 
       <section className="mt-8">
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Histórico</h2>

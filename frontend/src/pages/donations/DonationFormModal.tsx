@@ -1,7 +1,10 @@
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useState } from 'react'
 import { Modal } from '../../components/Modal'
+import { PhotoPicker } from '../../components/PhotoPicker'
+import { uploadPhotos } from '../../services/photos'
 import { useCreateDonation } from '../../hooks/useDonations'
 import { useDonors } from '../../hooks/useDonors'
 import { getStoredUser } from '../../services/auth'
@@ -54,12 +57,19 @@ export function DonationFormModal({ onClose }: DonationFormModalProps) {
     resolver: zodResolver(schema),
     defaultValues: { category: 'OUTRO', storageCondition: '', acceptTerms: false },
   })
+  const [photos, setPhotos] = useState<File[]>([])
+  const [photoError, setPhotoError] = useState<string | null>(null)
   const category = useWatch({ control, name: 'category' })
   const storageRequired = STORAGE_REQUIRED_CATEGORIES.includes(category)
 
   async function onSubmit(values: FormValues) {
+    if (photos.length === 0) {
+      setPhotoError('Tire ou escolha ao menos uma foto do alimento. Ela ajuda o receptor a decidir e a conferir na coleta.')
+      return
+    }
+    setPhotoError(null)
     try {
-      await createDonation.mutateAsync({
+      const created = await createDonation.mutateAsync({
         donorId: values.donorId || undefined,
         category: values.category,
         description: values.description,
@@ -71,6 +81,13 @@ export function DonationFormModal({ onClose }: DonationFormModalProps) {
         acceptTerms: true,
         notes: values.notes || undefined,
       })
+      try {
+        await uploadPhotos(created.id, photos, 'OFERTA')
+      } catch (uploadError) {
+        // A doação já foi criada; sem foto ela não aparece para reserva. Leva o usuário
+        // para a doação, onde dá para tentar de novo.
+        window.alert(`A doação foi registrada, mas a foto não foi enviada (${getErrorMessage(uploadError)}). Abra a doação e adicione a foto para ela aparecer aos receptores.`)
+      }
       onClose()
     } catch (error) {
       const fieldErrors = getFieldErrors(error)
@@ -196,6 +213,18 @@ export function DonationFormModal({ onClose }: DonationFormModalProps) {
           </select>
           {errors.storageCondition && <p className="mt-1 text-xs text-red-600">{errors.storageCondition.message}</p>}
         </div>
+
+        <PhotoPicker
+          files={photos}
+          onChange={(files) => {
+            setPhotos(files)
+            setPhotoError(null)
+          }}
+          max={3}
+          label="Fotos do alimento"
+          hint="Obrigatório. Fotografe só o alimento e a embalagem, sem pessoas. Dá para tirar agora ou escolher da galeria."
+          error={photoError}
+        />
 
         <div>
           <label htmlFor="donation-notes" className="mb-1 block text-sm font-medium text-slate-700">

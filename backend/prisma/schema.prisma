@@ -17,6 +17,14 @@ enum ApprovalStatus {
   REJEITADO
 }
 
+// Em que momento a foto foi tirada: oferta (o doador, ao cadastrar), coleta (o
+// voluntário, na parada) ou entrega (o receptor, ao confirmar o recebimento).
+enum PhotoKind {
+  OFERTA
+  COLETA
+  ENTREGA
+}
+
 enum Role {
   ADMIN
   DOADOR
@@ -139,6 +147,51 @@ model User {
 }
 
 // ─── Doadores e Receptores ───
+
+model DonationPhoto {
+  id String @id @default(cuid())
+
+  donationId String
+  donation   Donation @relation(fields: [donationId], references: [id], onDelete: Cascade)
+
+  kind PhotoKind
+
+  // Chave do arquivo no armazenamento (Supabase Storage ou disco local). Nunca é
+  // exposta: a imagem só sai pela API, depois de checar quem pode ver.
+  storageKey String @unique
+  mimeType   String
+  sizeBytes  Int
+  width      Int?
+  height     Int?
+
+  // Quem enviou: usuário do sistema ou, no link de campo, o nome do voluntário.
+  uploadedById    String?
+  uploadedByLabel String?
+
+  createdAt DateTime @default(now())
+
+  @@index([donationId, kind])
+  @@map("donation_photos")
+}
+
+// Link de campo: o voluntário abre no celular, sem criar conta, e registra as
+// paradas da rota. O link é uma credencial limitada a UMA rota e expira.
+model PickupRouteAccess {
+  id String @id @default(cuid())
+
+  routeId String
+  route   PickupRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([routeId])
+  @@map("pickup_route_access")
+}
 
 model PasswordResetToken {
   id String @id @default(cuid())
@@ -302,6 +355,7 @@ model Donation {
 
   events        DonationEvent[]
   notifications Notification[]
+  photos        DonationPhoto[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -388,7 +442,8 @@ model PickupRoute {
   notes        String?           @db.Text
 
   donations       Donation[]
-  failedDonations Donation[] @relation("FailedStops")
+  failedDonations Donation[]          @relation("FailedStops")
+  accessLinks     PickupRouteAccess[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

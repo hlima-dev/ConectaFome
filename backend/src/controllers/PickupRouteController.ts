@@ -2,9 +2,11 @@ import { Request, Response } from 'express'
 import { z } from 'zod'
 import { PickupFailureReason, PickupRouteStatus } from '@prisma/client'
 import { PickupRouteService } from '../services/PickupRouteService'
+import { FieldService } from '../services/FieldService'
 import { getPagination, successResponse } from '../utils/pagination'
 
 const pickupRouteService = new PickupRouteService()
+const fieldService = new FieldService()
 
 const createRouteSchema = z.object({
   vehicleId: z.string().min(1, 'Selecione o veículo'),
@@ -105,5 +107,15 @@ export class PickupRouteController {
     const data = failStopSchema.parse(req.body ?? {})
     const route = await pickupRouteService.failStop(String(req.params.id), String(req.params.donationId), data, { userId: req.user!.id })
     res.json(successResponse(route, 'Parada registrada como não coletada'))
+  }
+
+  async createFieldLink(req: Request, res: Response): Promise<void> {
+    const result = await fieldService.createLink(String(req.params.id))
+    res.json(successResponse(result, 'Link gerado. Os links anteriores desta rota deixaram de valer.'))
+  }
+
+  async revokeFieldLinks(req: Request, res: Response): Promise<void> {
+    await fieldService.revokeLinks(String(req.params.id))
+    res.status(204).send()
   }
 }

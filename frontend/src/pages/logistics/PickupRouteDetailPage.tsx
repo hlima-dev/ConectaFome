@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { FailStopModal } from '../../components/FailStopModal'
+import { FieldLinkButton } from '../../components/FieldLinkButton'
 import { RoutePlanPanel } from '../../components/RoutePlanPanel'
 import { StatusBadge } from '../../components/StatusBadge'
 import {
@@ -118,7 +119,10 @@ export function PickupRouteDetailPage() {
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-slate-900">Rota #{route.routeNumber}</h1>
-        <StatusBadge label={PICKUP_ROUTE_STATUS_LABELS[route.status]} tone={PICKUP_ROUTE_STATUS_TONES[route.status]} />
+        <div className="flex flex-wrap items-center gap-3">
+          {(isPlanned || isOngoing) && <FieldLinkButton routeId={route.id} volunteerName={route.volunteer.name} />}
+          <StatusBadge label={PICKUP_ROUTE_STATUS_LABELS[route.status]} tone={PICKUP_ROUTE_STATUS_TONES[route.status]} />
+        </div>
       </div>
 
       {error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}

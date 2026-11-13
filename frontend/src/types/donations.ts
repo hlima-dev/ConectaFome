@@ -70,6 +70,8 @@ export interface Donation {
   canceledAt: string | null
   expiredAt: string | null
   urgency: Urgency | null
+  // Capa da foto da oferta (só o id da primeira) nas listas.
+  photos?: { id: string }[]
   pickupFailureReason?: PickupFailureReason | null
   pickupFailureNote?: string | null
   pickupFailedAt?: string | null

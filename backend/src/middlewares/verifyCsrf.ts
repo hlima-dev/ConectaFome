@@ -15,6 +15,12 @@ export function verifyCsrf(req: Request, res: Response, next: NextFunction): voi
     return
   }
 
+  // Link de campo: autorizado pelo token no caminho, não por cookie — não há o que forjar.
+  if ((req.originalUrl ?? req.path ?? '').startsWith('/api/v1/field/')) {
+    next()
+    return
+  }
+
   // Sem cookie de sessão ainda (ex.: login, registro, refresh) — nada para
   // validar, essas rotas não usam o cookie de acesso para autenticar.
   const cookieToken = req.cookies?.[CSRF_COOKIE]

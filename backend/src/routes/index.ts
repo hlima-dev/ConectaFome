@@ -10,6 +10,7 @@ import { pickupRouteRouter } from './pickup-routes.routes'
 import { reportRouter } from './reports.routes'
 import { notificationRouter } from './notifications.routes'
 import { maintenanceRouter } from './maintenance.routes'
+import { fieldRouter } from './field.routes'
 
 const router = Router()
 
@@ -23,5 +24,6 @@ router.use('/pickup-routes', pickupRouteRouter)
 router.use('/reports', reportRouter)
 router.use('/notifications', notificationRouter)
 router.use('/maintenance', maintenanceRouter)
+router.use('/field', fieldRouter)
 
 export { router }

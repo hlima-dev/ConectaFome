@@ -31,6 +31,8 @@ export function useOpportunities(filters?: { city?: string; category?: FoodCateg
   return useQuery({
     queryKey: ['opportunities', filters],
     queryFn: () => listOpportunities(filters),
+    // Doação nova ou reservada por outro aparece sem precisar recarregar a página.
+    refetchInterval: 45_000,
   })
 }
 

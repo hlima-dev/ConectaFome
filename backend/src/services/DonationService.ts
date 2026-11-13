@@ -1,5 +1,6 @@
-import { DonationAction, DonationStatus, FoodCategory, Role, StorageCondition } from '@prisma/client'
+import { DonationAction, DonationStatus, FoodCategory, PhotoKind, Role, StorageCondition } from '@prisma/client'
 import { prisma } from '../config/prisma'
+import { env } from '../config/env'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/AppError'
 import { paginate, PaginationParams } from '../utils/pagination'
 import { computeUrgency, withUrgency } from '../utils/urgency'
@@ -58,6 +59,9 @@ const OPPORTUNITIES_LIMIT = 500
 export class DonationService {
   private notifications = new NotificationService()
 
+  // Só a primeira foto da oferta (capa): a lista não precisa carregar todas.
+  private coverPhoto = { where: { kind: PhotoKind.OFERTA }, select: { id: true }, orderBy: { createdAt: 'asc' as const }, take: 1 }
+
   // DOADOR sempre doa em nome do próprio cadastro (nunca de um donorId no
   // corpo da requisição); ADMIN pode criar em nome de qualquer doador,
   // passando donorId explicitamente.
@@ -109,7 +113,7 @@ export class DonationService {
         skip: pagination.skip,
         take: pagination.limit,
         orderBy: { createdAt: 'desc' },
-        include: { donor: true, recipient: true, route: true },
+        include: { donor: true, recipient: true, route: true, photos: this.coverPhoto },
       }),
       prisma.donation.count({ where }),
     ])
@@ -248,13 +252,15 @@ export class DonationService {
     const rows = await prisma.donation.findMany({
       where: {
         status: DonationStatus.DISPONIVEL,
+        // Com a exigência ligada, doação sem foto da oferta nem aparece para reserva.
+        ...(env.REQUIRE_OFFER_PHOTO ? { photos: { some: { kind: PhotoKind.OFERTA } } } : {}),
         donor: {
           active: true,
           ...(filter.city ? { city: { contains: filter.city, mode: 'insensitive' as const } } : {}),
         },
         ...(filter.category ? { category: filter.category } : {}),
       },
-      include: { donor: { select: { id: true, name: true, city: true, state: true } } },
+      include: { donor: { select: { id: true, name: true, city: true, state: true } }, photos: this.coverPhoto },
       take: OPPORTUNITIES_LIMIT,
     })
 
@@ -282,6 +288,9 @@ export class DonationService {
     const donation = await this.getOrThrow(id)
     if (computeUrgency(donation)?.level === 'EXPIRED') {
       throw new ValidationError('O prazo desta doação já encerrou')
+    }
+    if (env.REQUIRE_OFFER_PHOTO && (await prisma.donationPhoto.count({ where: { donationId: id, kind: PhotoKind.OFERTA } })) === 0) {
+      throw new ValidationError('Esta doação ainda não tem foto do alimento')
     }
 
     const reserved = await prisma.$transaction(async (tx) => {

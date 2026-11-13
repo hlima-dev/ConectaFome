@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Loader2, MapPin } from 'lucide-react'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { StatusBadge } from '../../components/StatusBadge'
+import { photoUrl } from '../../services/photos'
 import { UrgencyBadge } from '../../components/UrgencyBadge'
 import { formatTimeLeft } from '../../utils/time'
 import { useOpportunities, useReserveDonation } from '../../hooks/useDonations'
@@ -109,7 +110,15 @@ export function OpportunitiesPage() {
 
       <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {opportunities?.map((opportunity) => (
-          <li key={opportunity.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5">
+          <li key={opportunity.id} className="flex flex-col gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-5">
+            {opportunity.photos?.[0] && (
+              <img
+                src={photoUrl(opportunity.id, opportunity.photos[0].id)}
+                alt={`Foto de ${opportunity.description}`}
+                loading="lazy"
+                className="-mx-5 -mt-5 mb-1 aspect-[16/9] w-[calc(100%+2.5rem)] max-w-none object-cover"
+              />
+            )}
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <h2 className="font-semibold text-slate-900">{opportunity.description}</h2>
