@@ -12,6 +12,7 @@ import { notificationRouter } from './notifications.routes'
 import { maintenanceRouter } from './maintenance.routes'
 import { fieldRouter } from './field.routes'
 import { publicRouter } from './public.routes'
+import { configRouter } from './config.routes'
 
 const router = Router()
 
@@ -27,5 +28,6 @@ router.use('/notifications', notificationRouter)
 router.use('/maintenance', maintenanceRouter)
 router.use('/field', fieldRouter)
 router.use('/public', publicRouter)
+router.use('/config', configRouter)
 
 export { router }

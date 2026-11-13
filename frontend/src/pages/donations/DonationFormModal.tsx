@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { PhotoPicker } from '../../components/PhotoPicker'
 import { uploadPhotos } from '../../services/photos'
+import { useAppConfig } from '../../hooks/useAppConfig'
 import { useCreateDonation } from '../../hooks/useDonations'
 import { useDonors } from '../../hooks/useDonors'
 import { getStoredUser } from '../../services/auth'
@@ -57,13 +58,14 @@ export function DonationFormModal({ onClose }: DonationFormModalProps) {
     resolver: zodResolver(schema),
     defaultValues: { category: 'OUTRO', storageCondition: '', acceptTerms: false },
   })
+  const config = useAppConfig()
   const [photos, setPhotos] = useState<File[]>([])
   const [photoError, setPhotoError] = useState<string | null>(null)
   const category = useWatch({ control, name: 'category' })
   const storageRequired = STORAGE_REQUIRED_CATEGORIES.includes(category)
 
   async function onSubmit(values: FormValues) {
-    if (photos.length === 0) {
+    if (config.photos.enabled && config.photos.offerRequired && photos.length === 0) {
       setPhotoError('Tire ou escolha ao menos uma foto do alimento. Ela ajuda o receptor a decidir e a conferir na coleta.')
       return
     }
@@ -82,7 +84,7 @@ export function DonationFormModal({ onClose }: DonationFormModalProps) {
         notes: values.notes || undefined,
       })
       try {
-        await uploadPhotos(created.id, photos, 'OFERTA')
+        if (config.photos.enabled && photos.length > 0) await uploadPhotos(created.id, photos, 'OFERTA')
       } catch (uploadError) {
         // A doação já foi criada; sem foto ela não aparece para reserva. Leva o usuário
         // para a doação, onde dá para tentar de novo.
@@ -214,6 +216,7 @@ export function DonationFormModal({ onClose }: DonationFormModalProps) {
           {errors.storageCondition && <p className="mt-1 text-xs text-red-600">{errors.storageCondition.message}</p>}
         </div>
 
+        {config.photos.enabled && (
         <PhotoPicker
           files={photos}
           onChange={(files) => {
@@ -222,9 +225,10 @@ export function DonationFormModal({ onClose }: DonationFormModalProps) {
           }}
           max={3}
           label="Fotos do alimento"
-          hint="Obrigatório. Fotografe só o alimento e a embalagem, sem pessoas. Dá para tirar agora ou escolher da galeria."
+          hint={`${config.photos.offerRequired ? 'Obrigatório. ' : 'Opcional. '}Fotografe só o alimento e a embalagem, sem pessoas. Dá para tirar agora ou escolher da galeria.`}
           error={photoError}
         />
+        )}
 
         <div>
           <label htmlFor="donation-notes" className="mb-1 block text-sm font-medium text-slate-700">

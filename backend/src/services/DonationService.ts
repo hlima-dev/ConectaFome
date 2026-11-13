@@ -1,12 +1,12 @@
 import { DonationAction, DonationStatus, FoodCategory, PhotoKind, Role, StorageCondition } from '@prisma/client'
 import { prisma } from '../config/prisma'
-import { env } from '../config/env'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/AppError'
 import { paginate, PaginationParams } from '../utils/pagination'
 import { computeUrgency, withUrgency } from '../utils/urgency'
 import { donationTransition } from './donationTransition'
 import { NotificationService } from './NotificationService'
 import { assertApproved } from './ApprovalService'
+import { photoPolicy } from '../storage/StorageDriver'
 import { donationCode, parseDonationCode, receiptSignature } from '../utils/donationCode'
 
 interface CreateDonationInput {
@@ -287,7 +287,7 @@ export class DonationService {
       where: {
         status: DonationStatus.DISPONIVEL,
         // Com a exigência ligada, doação sem foto da oferta nem aparece para reserva.
-        ...(env.REQUIRE_OFFER_PHOTO ? { photos: { some: { kind: PhotoKind.OFERTA } } } : {}),
+        ...(photoPolicy().offerRequired ? { photos: { some: { kind: PhotoKind.OFERTA } } } : {}),
         donor: {
           active: true,
           ...(filter.city ? { city: { contains: filter.city, mode: 'insensitive' as const } } : {}),
@@ -323,7 +323,7 @@ export class DonationService {
     if (computeUrgency(donation)?.level === 'EXPIRED') {
       throw new ValidationError('O prazo desta doação já encerrou')
     }
-    if (env.REQUIRE_OFFER_PHOTO && (await prisma.donationPhoto.count({ where: { donationId: id, kind: PhotoKind.OFERTA } })) === 0) {
+    if (photoPolicy().offerRequired && (await prisma.donationPhoto.count({ where: { donationId: id, kind: PhotoKind.OFERTA } })) === 0) {
       throw new ValidationError('Esta doação ainda não tem foto do alimento')
     }
 

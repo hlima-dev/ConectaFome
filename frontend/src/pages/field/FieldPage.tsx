@@ -177,6 +177,7 @@ export function FieldPage() {
         <CollectSheet
           donation={collecting}
           requirePhoto={view.requirePhoto}
+          photosEnabled={view.photosEnabled}
           busy={busy}
           error={error}
           onClose={() => setCollecting(null)}
@@ -189,7 +190,7 @@ export function FieldPage() {
       {failing && (
         <FailStopModal
           description={failing.description}
-          withPhotos
+          withPhotos={view.photosEnabled}
           isLoading={busy}
           error={error}
           onClose={() => setFailing(null)}
@@ -202,9 +203,10 @@ export function FieldPage() {
   )
 }
 
-function CollectSheet({ donation, requirePhoto, busy, error, onClose, onConfirm }: {
+function CollectSheet({ donation, requirePhoto, photosEnabled, busy, error, onClose, onConfirm }: {
   donation: FieldDonation
   requirePhoto: boolean
+  photosEnabled: boolean
   busy: boolean
   error: string | null
   onClose: () => void
@@ -231,14 +233,18 @@ function CollectSheet({ donation, requirePhoto, busy, error, onClose, onConfirm 
   return (
     <Modal title="Confirmar coleta" onClose={onClose}>
       <p className="mb-3 text-sm text-slate-600">{donation.description}</p>
-      <PhotoPicker
-        files={files}
-        onChange={(f) => { setFiles(f); setLocalError(null) }}
-        max={5}
-        label="Fotos do que você está levando"
-        hint={requirePhoto ? 'Obrigatório. Mostre o alimento e a quantidade.' : 'Opcional.'}
-        error={localError}
-      />
+      {photosEnabled ? (
+        <PhotoPicker
+          files={files}
+          onChange={(f) => { setFiles(f); setLocalError(null) }}
+          max={5}
+          label="Fotos do que você está levando"
+          hint={requirePhoto ? 'Obrigatório. Mostre o alimento e a quantidade.' : 'Opcional.'}
+          error={localError}
+        />
+      ) : (
+        localError && <p className="text-sm text-red-600">{localError}</p>
+      )}
       <label htmlFor="kg" className="mb-1 mt-4 block text-sm font-medium text-slate-700">
         Peso coletado em kg <span className="font-normal text-slate-400">(se diferente de {formatKg(donation.estimatedKg)})</span>
       </label>

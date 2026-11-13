@@ -1,6 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { env } from '../config/env'
+import { AppError } from '../utils/AppError'
 
 export interface StoredObject {
   data: Buffer
@@ -100,12 +101,32 @@ export class SupabaseStorageDriver implements StorageDriver {
   }
 }
 
+// Em produção, guardar foto no disco do servidor perderia tudo a cada deploy (o
+// disco do Render gratuito é apagado). Sem Supabase configurado, o recurso de fotos
+// fica DESLIGADO em vez de aceitar uploads que depois somem. STORAGE_ALLOW_LOCAL=true
+// força o disco (ex.: servidor próprio com volume persistente).
+export function isStorageReady(): boolean {
+  if (env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY) return true
+  if (env.NODE_ENV !== 'production') return true
+  return process.env.STORAGE_ALLOW_LOCAL === 'true'
+}
+
+// O que o sistema exige e oferece de fotos agora. Se o armazenamento não está pronto,
+// nada é exigido (senão a plataforma travaria: ninguém conseguiria doar nem reservar).
+export function photoPolicy() {
+  const enabled = isStorageReady()
+  return { enabled, offerRequired: enabled && env.REQUIRE_OFFER_PHOTO, pickupRequired: enabled && env.REQUIRE_PICKUP_PHOTO }
+}
+
 export function createStorage(): StorageDriver {
   return env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY ? new SupabaseStorageDriver() : new LocalStorageDriver()
 }
 
 let current: StorageDriver | null = null
 export function getStorage(): StorageDriver {
+  if (!current && !isStorageReady()) {
+    throw new AppError('O envio de fotos ainda não está configurado neste ambiente. Avise a administração.', 503)
+  }
   current ??= createStorage()
   return current
 }

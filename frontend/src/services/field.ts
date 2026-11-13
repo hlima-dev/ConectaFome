@@ -36,6 +36,7 @@ export interface FieldView {
   volunteerName: string
   vehicle: { plate: string; model: string }
   expiresAt: string
+  photosEnabled: boolean
   requirePhoto: boolean
   stops: FieldStop[]
   failed: { id: string; description: string; donorName: string; reason: string | null; note: string | null }[]

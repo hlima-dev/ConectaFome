@@ -1,6 +1,6 @@
 import { ApprovalStatus, DonationStatus, PhotoKind, PickupRouteStatus, Prisma } from '@prisma/client'
 import { prisma } from '../config/prisma'
-import { env } from '../config/env'
+import { photoPolicy } from '../storage/StorageDriver'
 import { computeUrgency } from '../utils/urgency'
 import { donationCode } from '../utils/donationCode'
 import { toCsv } from '../utils/csv'
@@ -294,7 +294,7 @@ export class ReportService {
         },
         take: 500,
       }),
-      env.REQUIRE_OFFER_PHOTO
+      photoPolicy().offerRequired
         ? prisma.donation.findMany({
             where: { status: DonationStatus.DISPONIVEL, photos: { none: { kind: PhotoKind.OFERTA } } },
             select: { id: true, number: true, description: true, donor: { select: { name: true } } },

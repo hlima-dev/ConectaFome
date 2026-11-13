@@ -20,7 +20,7 @@ const donation = (over: Record<string, unknown> = {}) => ({
 
 const view = (over: Record<string, unknown> = {}, donations = [donation()]) => ({
   route: { routeNumber: 7, status: 'EM_ANDAMENTO', scheduledFor: '2026-11-10T10:00:00Z', departedAt: null, completedAt: null },
-  volunteerName: 'Carlos', vehicle: { plate: 'ABC1D23', model: 'Fiorino' }, expiresAt: '2026-11-12T10:00:00Z', requirePhoto: true,
+  volunteerName: 'Carlos', vehicle: { plate: 'ABC1D23', model: 'Fiorino' }, expiresAt: '2026-11-12T10:00:00Z', photosEnabled: true, requirePhoto: true,
   stops: [{ sequence: 1, donorName: 'Padaria Central', address: 'Rua A, 10', city: 'Sorocaba', latitude: null, longitude: null, contactName: 'Dona Ana', phone: '(15) 99999-0000', donations }],
   failed: [], ...over,
 })
@@ -86,6 +86,19 @@ describe('FieldPage (voluntário)', () => {
     const [token, id, files, kg] = api.collectFieldStop.mock.calls[0]
     expect([token, id, files.length, kg]).toEqual(['abc', 'd1', 1, 11.5])
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('sem armazenamento de fotos configurado, o seletor some e a coleta segue sem foto', async () => {
+    api.getFieldView.mockResolvedValue(view({ photosEnabled: false, requirePhoto: false }))
+    api.collectFieldStop.mockResolvedValue(view({ photosEnabled: false, requirePhoto: false }))
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Coletei' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByRole('button', { name: /tirar foto/i })).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: /confirmar coleta/i }))
+    await waitFor(() => expect(api.collectFieldStop).toHaveBeenCalledWith('abc', 'd1', [], undefined))
   })
 
   it('com a exigência de foto desligada, coleta sem foto', async () => {

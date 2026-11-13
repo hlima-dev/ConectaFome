@@ -7,6 +7,8 @@ const mutateAsync = vi.hoisted(() => vi.fn())
 const uploadPhotos = vi.hoisted(() => vi.fn())
 vi.mock('../src/services/photos', () => ({ uploadPhotos }))
 vi.mock('../src/hooks/useDonations', () => ({ useCreateDonation: () => ({ mutateAsync }) }))
+const appConfig = vi.hoisted(() => ({ photos: { enabled: true, offerRequired: true, pickupRequired: true } }))
+vi.mock('../src/hooks/useAppConfig', () => ({ useAppConfig: () => appConfig }))
 vi.mock('../src/hooks/useDonors', () => ({ useDonors: () => ({ data: [] }) }))
 vi.mock('../src/services/auth', () => ({ getStoredUser: () => ({ id: 'u1', role: 'DOADOR' }) }))
 
@@ -29,6 +31,7 @@ describe('DonationFormModal', () => {
     mutateAsync.mockReset()
     mutateAsync.mockResolvedValue({ id: 'don1' })
     uploadPhotos.mockReset()
+    appConfig.photos = { enabled: true, offerRequired: true, pickupRequired: true }
     uploadPhotos.mockResolvedValue([])
   })
 
@@ -129,5 +132,29 @@ describe('DonationFormModal', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled())
     expect(alert).toHaveBeenCalledWith(expect.stringContaining('a foto não foi enviada'))
     alert.mockRestore()
+  })
+
+  it('com as fotos desligadas no servidor, o campo some e a doação é registrada sem foto', async () => {
+    appConfig.photos = { enabled: false, offerRequired: false, pickupRequired: false }
+    const user = userEvent.setup()
+    render(<DonationFormModal onClose={() => {}} />)
+    expect(screen.queryByText(/Fotos do alimento/)).not.toBeInTheDocument()
+    fillRequiredFields()
+    await user.click(screen.getByLabelText(/declaro que este alimento/i))
+    await user.click(screen.getByRole('button', { name: /salvar/i }))
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1))
+    expect(uploadPhotos).not.toHaveBeenCalled()
+  })
+
+  it('com a foto opcional, registra sem foto', async () => {
+    appConfig.photos = { enabled: true, offerRequired: false, pickupRequired: false }
+    const user = userEvent.setup()
+    render(<DonationFormModal onClose={() => {}} />)
+    expect(screen.getByText(/Opcional\./)).toBeInTheDocument()
+    fillRequiredFields()
+    await user.click(screen.getByLabelText(/declaro que este alimento/i))
+    await user.click(screen.getByRole('button', { name: /salvar/i }))
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1))
   })
 })

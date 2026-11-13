@@ -21,3 +21,9 @@ Thumbs.db
 .idea/
 *.suo
 *.sw?
+
+# Fotos enviadas em desenvolvimento (em produção ficam no Supabase Storage)
+uploads/
+
+# Cópias de segurança do banco: têm dados pessoais
+backup-*.sql.gz

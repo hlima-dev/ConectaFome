@@ -13,6 +13,8 @@
     "db:migrate:prod": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "storage:check": "tsx scripts/check-storage.ts",
+    "email:check": "tsx scripts/check-email.ts",
     "db:reset": "prisma migrate reset",
     "test": "vitest run",
     "test:watch": "vitest",

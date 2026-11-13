@@ -30,6 +30,31 @@ relatório de quanto alimento foi efetivamente resgatado por mês.
   `VENCIDA` existe para tornar visível, e não esconder, o que ainda se
   perde antes da coleta.
 
+## O que o sistema faz hoje
+
+- **Cadastro com confiança:** CPF/CNPJ validado pelos dígitos verificadores; todo
+  cadastro novo passa por aprovação da administração antes de doar ou reservar.
+- **Doação com foto:** o doador fotografa o alimento ao cadastrar; o voluntário
+  fotografa cada parada na coleta (pelo **link da rota**, no celular, sem conta);
+  o receptor pode fotografar o recebimento. As fotos são reduzidas, sem dados de
+  localização, e só aparecem a quem faz parte da doação.
+- **Reserva e rota:** o receptor reserva pelo painel (da mais urgente para a menos);
+  a administração monta a rota com veículo e voluntário, mapa e controle de carga.
+- **Coleta parada a parada:** coletada, ou não coletada com motivo (doador ausente,
+  recusou, impróprio, sem espaço); o que falha volta para reagendar ou é cancelado.
+- **Prazos automáticos:** doação fora do prazo vira vencida e reserva parada volta ao
+  painel (agendador no GitHub Actions, porque o servidor gratuito dorme).
+- **Painel da administração com fila de pendências:** o que precisa de ação agora
+  (aprovações, urgentes, reservadas sem rota, coletadas sem confirmação, sem foto).
+- **Comprovante** com código `DOA-00042` e QR code que leva a uma página pública de
+  conferência de autenticidade (sem endereços nem documentos).
+- **Recuperação de senha** por e-mail ou por link gerado pela administração; **avisos
+  por e-mail** opcionais.
+- Relatórios com período, indicadores e exportação CSV.
+
+Como publicar (inclusive os limites dos planos gratuitos) e o checklist para usar com
+ONGs reais: **[DEPLOY.md](DEPLOY.md)**.
+
 ## Arquitetura
 
 Monorepo com backend e frontend separados, mesma fundação de auth/
@@ -42,7 +67,7 @@ não código copiado, já que os stacks de origem são diferentes.
 ConectaFome/
 ├── backend/                  # Node + Express + TypeScript + Prisma + PostgreSQL
 │   ├── prisma/
-│   │   ├── schema.prisma     # 9 modelos, 8 enums
+│   │   ├── schema.prisma     # modelos e enums (ver o arquivo)
 │   │   └── seed.ts           # dados de exemplo (idempotente)
 │   ├── src/
 │   │   ├── config/           # env (Zod) e cliente Prisma
@@ -50,7 +75,8 @@ ConectaFome/
 │   │   ├── services/         # regra de negócio
 │   │   ├── middlewares/      # auth, CSRF, rate limit, erro
 │   │   ├── routes/           # mapeamento REST
-│   │   └── utils/            # AppError, JWT, cookies, paginação
+│   │   ├── storage/          # armazenamento de fotos (Supabase Storage ou disco local)
+│   │   └── utils/            # AppError, JWT, cookies, paginação, imagem, CPF/CNPJ
 │   └── tests/                # Vitest — services e middlewares
 └── frontend/                 # React + Vite + TypeScript + Tailwind
     └── src/

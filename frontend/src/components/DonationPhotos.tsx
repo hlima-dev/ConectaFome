@@ -5,6 +5,7 @@ import { PhotoPicker } from './PhotoPicker'
 import { Modal } from './Modal'
 import { usePhotos, useUploadPhotos } from '../hooks/usePhotos'
 import { getErrorMessage } from '../utils/errors'
+import { useAppConfig } from '../hooks/useAppConfig'
 
 interface Props {
   donationId: string
@@ -16,11 +17,14 @@ interface Props {
 // Seção "Fotos" da doação: galeria por etapa + envio de foto da oferta (doador) ou
 // da entrega (receptor).
 export function DonationPhotos({ donationId, canAddOffer, canAddDelivery }: Props) {
+  const config = useAppConfig()
   const { data: photos, isLoading } = usePhotos(donationId)
   const upload = useUploadPhotos(donationId)
   const [adding, setAdding] = useState<'OFERTA' | 'ENTREGA' | null>(null)
   const [files, setFiles] = useState<File[]>([])
   const [error, setError] = useState<string | null>(null)
+
+  if (!config.photos.enabled) return null
 
   const offerCount = photos?.filter((p) => p.kind === 'OFERTA').length ?? 0
   const deliveryCount = photos?.filter((p) => p.kind === 'ENTREGA').length ?? 0

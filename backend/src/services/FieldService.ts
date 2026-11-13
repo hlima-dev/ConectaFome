@@ -1,12 +1,11 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { DonationStatus, PhotoKind, PickupFailureReason, PickupRouteStatus } from '@prisma/client'
 import { prisma } from '../config/prisma'
-import { env } from '../config/env'
 import { AppError, ValidationError } from '../utils/AppError'
 import { absoluteLink } from './EmailService'
 import { PhotoService } from './PhotoService'
 import { PickupRouteService, StopActor } from './PickupRouteService'
-import { getStorage } from '../storage/StorageDriver'
+import { getStorage, photoPolicy } from '../storage/StorageDriver'
 
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex')
 const HOURS_48 = 48 * 3_600_000
@@ -110,7 +109,8 @@ export class FieldService {
       volunteerName: full.volunteer.name,
       vehicle: { plate: full.vehicle.plate, model: full.vehicle.model },
       expiresAt: access.expiresAt,
-      requirePhoto: env.REQUIRE_PICKUP_PHOTO,
+      photosEnabled: photoPolicy().enabled,
+      requirePhoto: photoPolicy().pickupRequired,
       stops: stops.map((s) => ({ ...s, donations: s.donations.map((d) => ({ ...d, photoCount: counts.get(d.id) ?? 0 })) })),
       failed: (full.failedDonations ?? []).map((d) => ({
         id: d.id,
@@ -130,7 +130,7 @@ export class FieldService {
 
   async collect(token: string, donationId: string, files: Buffer[], quantityKg?: number) {
     const { route, actor } = await this.resolve(token)
-    if (env.REQUIRE_PICKUP_PHOTO && files.length === 0) {
+    if (photoPolicy().pickupRequired && files.length === 0) {
       throw new ValidationError('Tire ao menos uma foto do que está sendo coletado')
     }
     await this.routes.assertStopOpen(route.id, donationId)

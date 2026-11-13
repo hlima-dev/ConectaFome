@@ -31,6 +31,39 @@ services:
         sync: false
       - key: APP_URL
         sync: false
+      # Segredo do agendador (GitHub Actions, .github/workflows/manutencao.yml). O Render
+      # gera o valor; copie-o do painel para o secret CRON_SECRET do GitHub.
+      - key: CRON_SECRET
+        generateValue: true
+      # Cadastros novos esperam aprovação da administração antes de doar/reservar.
+      - key: REQUIRE_APPROVAL
+        value: "true"
+      # Horas que uma reserva do próprio receptor pode ficar sem rota antes de voltar ao painel.
+      - key: RESERVATION_HOLD_HOURS
+        value: "24"
+      # Fotos: guardadas no Supabase Storage (bucket privado). Sem SUPABASE_URL e
+      # SUPABASE_SERVICE_KEY o recurso de fotos fica desligado (e nada é exigido).
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: doacoes
+      # Com o armazenamento configurado: oferta sem foto não aparece para reserva e a
+      # coleta de cada parada exige foto.
+      - key: REQUIRE_OFFER_PHOTO
+        value: "true"
+      - key: REQUIRE_PICKUP_PHOTO
+        value: "true"
+      # E-mail (opcional; sem estas, o sistema funciona só com os avisos dentro do app).
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
       # Render (1) + proxy da Vercel na frente (2): o IP real do cliente vem do
       # X-Forwarded-For, pra o limite de tentativas ser por pessoa.
       - key: TRUST_PROXY
