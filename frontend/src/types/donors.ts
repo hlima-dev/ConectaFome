@@ -1,4 +1,4 @@
-import type { DonorType } from './auth'
+import type { DonorType, ApprovalStatus } from './auth'
 
 export interface Donor {
   id: string
@@ -14,6 +14,7 @@ export interface Donor {
   state: string | null
   zipCode: string | null
   active: boolean
+  user?: { email: string; approvalStatus: ApprovalStatus; approvalNote: string | null } | null
   createdAt: string
   updatedAt: string
 }

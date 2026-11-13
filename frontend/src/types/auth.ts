@@ -1,4 +1,11 @@
 export type Role = 'ADMIN' | 'DOADOR' | 'RECEPTOR'
+export type ApprovalStatus = 'PENDENTE' | 'APROVADO' | 'REJEITADO'
+
+export const APPROVAL_LABELS: Record<ApprovalStatus, string> = {
+  PENDENTE: 'Em análise',
+  APROVADO: 'Aprovado',
+  REJEITADO: 'Rejeitado',
+}
 export type DonorType = 'MERCADO' | 'RESTAURANTE' | 'FEIRA' | 'OUTRO'
 export type RecipientType = 'ONG' | 'FAMILIA'
 
@@ -9,6 +16,8 @@ export interface User {
   role: Role
   phone: string | null
   active: boolean
+  approvalStatus?: ApprovalStatus
+  approvalNote?: string | null
   createdAt: string
   donorProfile?: { id: string } | null
   recipientProfile?: { id: string } | null

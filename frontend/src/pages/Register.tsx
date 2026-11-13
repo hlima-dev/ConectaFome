@@ -8,6 +8,7 @@ import { register as registerRequest, saveSession } from '../services/auth'
 import { AuthShell } from '../components/AuthShell'
 import { getErrorMessage, getFieldErrors } from '../utils/errors'
 import { DONOR_TYPE_LABELS, RECIPIENT_TYPE_LABELS } from '../types/auth'
+import { isValidDocument, maskDocument } from '../utils/document'
 
 const passwordSchema = z
   .string()
@@ -27,12 +28,14 @@ const schema = z
     role: z.enum(['DOADOR', 'RECEPTOR'], { message: 'Selecione um papel' }),
 
     donorName: z.string().optional(),
+    donorDocument: z.string().optional(),
     donorType: z.enum(['MERCADO', 'RESTAURANTE', 'FEIRA', 'OUTRO']).optional(),
     donorAddress: z.string().optional(),
     donorCity: z.string().optional(),
     donorState: z.string().optional(),
 
     recipientName: z.string().optional(),
+    recipientDocument: z.string().optional(),
     recipientType: z.enum(['ONG', 'FAMILIA']).optional(),
     recipientAddress: z.string().optional(),
     recipientCity: z.string().optional(),
@@ -45,6 +48,14 @@ const schema = z
   .refine((data) => data.role !== 'DOADOR' || (data.donorName?.length ?? 0) >= 2, {
     message: 'Nome do doador é obrigatório',
     path: ['donorName'],
+  })
+  .refine((data) => data.role !== 'DOADOR' || isValidDocument(data.donorDocument ?? ''), {
+    message: 'Informe um CPF ou CNPJ válido',
+    path: ['donorDocument'],
+  })
+  .refine((data) => data.role !== 'RECEPTOR' || isValidDocument(data.recipientDocument ?? ''), {
+    message: 'Informe um CPF ou CNPJ válido',
+    path: ['recipientDocument'],
   })
   .refine((data) => data.role !== 'RECEPTOR' || (data.recipientName?.length ?? 0) >= 2, {
     message: 'Nome do receptor é obrigatório',
@@ -87,6 +98,7 @@ export function Register() {
           values.role === 'DOADOR'
             ? {
                 name: values.donorName!,
+                document: values.donorDocument,
                 type: values.donorType ?? 'OUTRO',
                 address: values.donorAddress || undefined,
                 city: values.donorCity || undefined,
@@ -97,6 +109,7 @@ export function Register() {
           values.role === 'RECEPTOR'
             ? {
                 name: values.recipientName!,
+                document: values.recipientDocument,
                 type: values.recipientType ?? 'ONG',
                 address: values.recipientAddress || undefined,
                 city: values.recipientCity || undefined,
@@ -204,6 +217,20 @@ export function Register() {
                   {errors.donorName && <p className="mt-1 text-xs text-red-600">{errors.donorName.message}</p>}
                 </div>
                 <div>
+                  <label htmlFor="donorDocument" className="mb-1 block text-sm font-medium text-slate-700">
+                    CPF ou CNPJ <span className="font-normal text-slate-400">(a administração confere antes de liberar o acesso)</span>
+                  </label>
+                  <input
+                    id="donorDocument"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="00.000.000/0000-00"
+                    className="input"
+                    {...register('donorDocument', { onChange: (e) => (e.target.value = maskDocument(e.target.value)) })}
+                  />
+                  {errors.donorDocument && <p className="mt-1 text-xs text-red-600">{errors.donorDocument.message}</p>}
+                </div>
+                <div>
                   <label htmlFor="donorAddress" className="mb-1 block text-sm font-medium text-slate-700">
                     Endereço <span className="font-normal text-slate-400">(rua e número; usado para o mapa das rotas)</span>
                   </label>
@@ -251,6 +278,20 @@ export function Register() {
                   {errors.recipientName && (
                     <p className="mt-1 text-xs text-red-600">{errors.recipientName.message}</p>
                   )}
+                </div>
+                <div>
+                  <label htmlFor="recipientDocument" className="mb-1 block text-sm font-medium text-slate-700">
+                    CPF ou CNPJ <span className="font-normal text-slate-400">(a administração confere antes de liberar o acesso)</span>
+                  </label>
+                  <input
+                    id="recipientDocument"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="00.000.000/0000-00"
+                    className="input"
+                    {...register('recipientDocument', { onChange: (e) => (e.target.value = maskDocument(e.target.value)) })}
+                  />
+                  {errors.recipientDocument && <p className="mt-1 text-xs text-red-600">{errors.recipientDocument.message}</p>}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -303,6 +344,10 @@ export function Register() {
               </div>
             </div>
           )}
+
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+            Para proteger doadores e quem recebe, todo cadastro novo passa por uma conferência rápida da administração antes de poder doar ou reservar.
+          </p>
 
           {formError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>}
 

@@ -1,7 +1,7 @@
 import { api } from './api'
 import type { Donor, DonorInput } from '../types/donors'
 
-export async function listDonors(params?: { includeInactive?: boolean; search?: string }): Promise<Donor[]> {
+export async function listDonors(params?: { includeInactive?: boolean; search?: string; approval?: string }): Promise<Donor[]> {
   const response = await api.get('/donors', { params })
   return response.data.data.data
 }

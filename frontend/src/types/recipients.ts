@@ -1,4 +1,4 @@
-import type { RecipientType } from './auth'
+import type { RecipientType, ApprovalStatus } from './auth'
 
 export interface Recipient {
   id: string
@@ -15,6 +15,7 @@ export interface Recipient {
   zipCode: string | null
   peopleServed: number | null
   active: boolean
+  user?: { email: string; approvalStatus: ApprovalStatus; approvalNote: string | null } | null
   createdAt: string
   updatedAt: string
 }

@@ -2,8 +2,9 @@ import type { DonationAction } from './donations'
 
 export interface AppNotification {
   id: string
-  donationId: string
-  action: DonationAction
+  donationId: string | null
+  action: DonationAction | null
+  link: string | null
   message: string
   readAt: string | null
   createdAt: string

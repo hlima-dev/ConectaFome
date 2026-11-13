@@ -3,7 +3,7 @@ import { createRecipient, deactivateRecipient, getRecipient, listRecipients, upd
 import type { RecipientInput } from '../types/recipients'
 
 export function useRecipients(
-  filters?: { includeInactive?: boolean; search?: string },
+  filters?: { includeInactive?: boolean; search?: string; approval?: string },
   options?: { enabled?: boolean },
 ) {
   return useQuery({

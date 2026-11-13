@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '../../components/DataTable'
 import { StatusBadge } from '../../components/StatusBadge'
+import { ApprovalActions, ApprovalBadge } from '../../components/ApprovalControls'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useDeactivateDonor, useDonors } from '../../hooks/useDonors'
 import { DONOR_TYPE_LABELS } from '../../types/auth'
@@ -11,12 +12,13 @@ import { getErrorMessage } from '../../utils/errors'
 
 export function DonorsPage() {
   const [includeInactive, setIncludeInactive] = useState(false)
+  const [approval, setApproval] = useState('')
   const [editingDonor, setEditingDonor] = useState<Donor | null>(null)
   const [creating, setCreating] = useState(false)
   const [deactivating, setDeactivating] = useState<Donor | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const { data: donors, isLoading } = useDonors({ includeInactive })
+  const { data: donors, isLoading } = useDonors({ includeInactive, approval: approval || undefined })
   const deactivateDonor = useDeactivateDonor()
 
   async function confirmDeactivate() {
@@ -36,6 +38,7 @@ export function DonorsPage() {
     { header: 'Contato', cell: (d) => d.contactName || '—' },
     { header: 'Telefone', cell: (d) => d.phone || '—' },
     { header: 'Cidade/UF', cell: (d) => (d.city ? `${d.city}${d.state ? '/' + d.state : ''}` : '—') },
+    { header: 'Cadastro', cell: (d) => <ApprovalBadge status={d.user?.approvalStatus} /> },
     {
       header: 'Status',
       cell: (d) => <StatusBadge label={d.active ? 'Ativo' : 'Inativo'} tone={d.active ? 'green' : 'neutral'} />,
@@ -44,7 +47,8 @@ export function DonorsPage() {
       header: '',
       className: 'text-right',
       cell: (d) => (
-        <div className="flex justify-end gap-3 text-sm">
+        <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
+          <ApprovalActions kind="donors" id={d.id} name={d.name} status={d.user?.approvalStatus} />
           <button type="button" className="text-slate-500 hover:text-slate-900" onClick={() => setEditingDonor(d)}>
             Editar
           </button>
@@ -72,7 +76,16 @@ export function DonorsPage() {
         </button>
       </div>
 
-      <div className="mb-4 flex items-center gap-4">
+      <div className="mb-4 flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          Cadastro
+          <select className="input w-auto py-1" value={approval} onChange={(e) => setApproval(e.target.value)}>
+            <option value="">Todos</option>
+            <option value="PENDENTE">Em análise</option>
+            <option value="APROVADO">Aprovados</option>
+            <option value="REJEITADO">Rejeitados</option>
+          </select>
+        </label>
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
           Incluir inativos

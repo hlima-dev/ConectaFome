@@ -5,6 +5,7 @@ import { paginate, PaginationParams } from '../utils/pagination'
 import { computeUrgency, withUrgency } from '../utils/urgency'
 import { donationTransition } from './donationTransition'
 import { NotificationService } from './NotificationService'
+import { assertApproved } from './ApprovalService'
 
 interface CreateDonationInput {
   donorId?: string
@@ -61,6 +62,7 @@ export class DonationService {
   // corpo da requisição); ADMIN pode criar em nome de qualquer doador,
   // passando donorId explicitamente.
   async create(input: CreateDonationInput, requester: Requester) {
+    if (requester.role === Role.DOADOR) await assertApproved(requester.id)
     const donorId = await this.resolveDonorId(input.donorId, requester)
 
     if (input.acceptTerms !== true) {
@@ -271,6 +273,7 @@ export class DonationService {
     if (requester.role !== Role.RECEPTOR) {
       throw new ForbiddenError('Apenas receptores reservam doações pelo painel (o administrador usa o casamento)')
     }
+    await assertApproved(requester.id)
     const recipient = await prisma.recipient.findUnique({ where: { userId: requester.id } })
     if (!recipient || !recipient.active) {
       throw new ForbiddenError('Cadastro de receptor não encontrado ou inativo')

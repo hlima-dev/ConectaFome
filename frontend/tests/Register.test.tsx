@@ -54,6 +54,7 @@ describe('Register — endereço (usado para o mapa das rotas)', () => {
     await user.type(screen.getByLabelText('E-mail'), 'maria@mercado.com')
     await user.type(screen.getByLabelText('Senha'), 'Senha1234')
     await user.type(screen.getByLabelText('Nome do estabelecimento'), 'Mercado Bom Preço')
+    await user.type(screen.getByLabelText(/^CPF ou CNPJ/), '11222333000181')
     await user.type(screen.getByLabelText(/^Endereço/), 'Rua XV de Novembro, 100')
     await user.type(screen.getByLabelText('Cidade'), 'Sorocaba')
     await user.click(screen.getByRole('button', { name: /cadastrar/i }))
@@ -77,8 +78,34 @@ describe('Register — endereço (usado para o mapa das rotas)', () => {
     await user.type(screen.getByLabelText('E-mail'), 'maria@mercado.com')
     await user.type(screen.getByLabelText('Senha'), 'Senha1234')
     await user.type(screen.getByLabelText('Nome do estabelecimento'), 'Mercado')
+    await user.type(screen.getByLabelText(/^CPF ou CNPJ/), '11222333000181')
     await user.click(screen.getByRole('button', { name: /cadastrar/i }))
     await vi.waitFor(() => expect(registerMock).toHaveBeenCalled())
     expect(registerMock.mock.calls.at(-1)![0].donor.address).toBeUndefined()
+  })
+})
+
+describe('Register — documento (CPF/CNPJ)', () => {
+  it('bloqueia o cadastro com documento inválido e mostra o erro', async () => {
+    const user = userEvent.setup()
+    registerMock.mockClear()
+    renderRegister()
+    await user.type(screen.getByLabelText('Nome'), 'Maria')
+    await user.type(screen.getByLabelText('E-mail'), 'maria@mercado.com')
+    await user.type(screen.getByLabelText('Senha'), 'Senha1234')
+    await user.type(screen.getByLabelText('Nome do estabelecimento'), 'Mercado')
+    await user.type(screen.getByLabelText(/^CPF ou CNPJ/), '11222333000180')
+    await user.click(screen.getByRole('button', { name: /cadastrar/i }))
+
+    expect(await screen.findByText('Informe um CPF ou CNPJ válido')).toBeInTheDocument()
+    expect(registerMock).not.toHaveBeenCalled()
+  })
+
+  it('aplica a máscara enquanto digita', async () => {
+    const user = userEvent.setup()
+    renderRegister()
+    const field = screen.getByLabelText(/^CPF ou CNPJ/)
+    await user.type(field, '11222333000181')
+    expect(field).toHaveValue('11.222.333/0001-81')
   })
 })

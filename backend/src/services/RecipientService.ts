@@ -1,4 +1,4 @@
-import { RecipientType, Role } from '@prisma/client'
+import { ApprovalStatus, RecipientType, Role } from '@prisma/client'
 import { prisma } from '../config/prisma'
 import { ForbiddenError, NotFoundError } from '../utils/AppError'
 import { paginate, PaginationParams } from '../utils/pagination'
@@ -23,6 +23,7 @@ type UpdateRecipientInput = Partial<CreateRecipientInput>
 interface ListRecipientsFilter {
   includeInactive?: boolean
   search?: string
+  approval?: ApprovalStatus
 }
 
 interface Requester {
@@ -41,13 +42,20 @@ export class RecipientService {
   async findAll(filter: ListRecipientsFilter, pagination: PaginationParams) {
     const where = {
       ...(filter.includeInactive ? {} : { active: true }),
+      ...(filter.approval && { user: { is: { approvalStatus: filter.approval } } }),
       ...(filter.search && {
         name: { contains: filter.search, mode: 'insensitive' as const },
       }),
     }
 
     const [recipients, total] = await Promise.all([
-      prisma.recipient.findMany({ where, skip: pagination.skip, take: pagination.limit, orderBy: { name: 'asc' } }),
+      prisma.recipient.findMany({
+        where,
+        skip: pagination.skip,
+        take: pagination.limit,
+        orderBy: { name: 'asc' },
+        include: { user: { select: { email: true, approvalStatus: true, approvalNote: true } } },
+      }),
       prisma.recipient.count({ where }),
     ])
 

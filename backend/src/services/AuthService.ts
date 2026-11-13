@@ -1,8 +1,9 @@
 import bcrypt from 'bcryptjs'
-import { User } from '@prisma/client'
+import { ApprovalStatus, User } from '@prisma/client'
 import { prisma } from '../config/prisma'
 import { env } from '../config/env'
 import { geocoder } from './GeocodingService'
+import { NotificationService } from './NotificationService'
 import { generateTokenPair, verifyRefreshToken } from '../utils/jwt'
 import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from '../utils/AppError'
 
@@ -51,6 +52,8 @@ const MAX_FAILED_LOGIN_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 1000 * 60 * 15 // 15 minutos
 
 export class AuthService {
+  private notifications = new NotificationService()
+
   // Cadastro público — só DOADOR ou RECEPTOR (conta ADMIN nasce só via
   // seed, nunca por aqui). Cria o User e o perfil (Donor/Recipient)
   // vinculado na mesma transação, senão um login sem perfil ficaria "preso"
@@ -80,6 +83,7 @@ export class AuthService {
           password: passwordHash,
           phone: input.phone,
           role: input.role,
+          approvalStatus: env.REQUIRE_APPROVAL ? ApprovalStatus.PENDENTE : ApprovalStatus.APROVADO,
         },
       })
 
@@ -102,6 +106,14 @@ export class AuthService {
 
     // Coordenadas do endereço, em segundo plano (melhor esforço).
     for (const profile of profiles) void geocoder.geocodeStoredProfile(profile.kind, profile.id)
+
+    if (env.REQUIRE_APPROVAL) {
+      const isDonor = input.role === 'DOADOR'
+      void this.notifications.notifyAdmins(
+        `Novo cadastro aguardando aprovação: ${input.donor?.name ?? input.recipient?.name} (${isDonor ? 'doador' : 'receptor'}).`,
+        isDonor ? '/doadores' : '/receptores',
+      )
+    }
 
     return this.issueSession(user)
   }
@@ -126,6 +138,8 @@ export class AuthService {
         role: true,
         phone: true,
         active: true,
+        approvalStatus: true,
+        approvalNote: true,
         createdAt: true,
         donorProfile: true,
         recipientProfile: true,
@@ -252,6 +266,8 @@ export class AuthService {
         role: true,
         phone: true,
         active: true,
+        approvalStatus: true,
+        approvalNote: true,
         createdAt: true,
         donorProfile: true,
         recipientProfile: true,

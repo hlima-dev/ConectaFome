@@ -35,6 +35,9 @@ vi.mock('../src/services/NotificationService', () => ({
   },
 }))
 
+const assertApproved = vi.hoisted(() => vi.fn())
+vi.mock('../src/services/ApprovalService', () => ({ assertApproved }))
+
 const admin = { id: 'admin_1', role: Role.ADMIN }
 const donorUser = { id: 'user_1', role: Role.DOADOR }
 const otherDonorUser = { id: 'user_2', role: Role.DOADOR }

@@ -9,6 +9,14 @@ datasource db {
 
 // ─── Enums ───
 
+// Cadastros públicos entram PENDENTE e só operam (doar/reservar) depois que a
+// administração aprova. Contas anteriores a esta regra ficam APROVADO.
+enum ApprovalStatus {
+  PENDENTE
+  APROVADO
+  REJEITADO
+}
+
 enum Role {
   ADMIN
   DOADOR
@@ -96,6 +104,10 @@ model User {
   role     Role    @default(DOADOR)
   phone    String?
   active   Boolean @default(true)
+
+  approvalStatus ApprovalStatus @default(APROVADO)
+  approvalNote   String?
+  approvedAt     DateTime?
 
   // Bloqueio por força bruta — complementa qualquer rate limit por IP,
   // que sozinho não impede tentativas trocando de IP contra uma conta.
@@ -298,11 +310,14 @@ model Notification {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  donationId String
-  donation   Donation @relation(fields: [donationId], references: [id], onDelete: Cascade)
+  // Avisos de doação trazem donationId/action; avisos administrativos (novo
+  // cadastro, aprovação) não têm doação e usam `link` para abrir a tela certa.
+  donationId String?
+  donation   Donation? @relation(fields: [donationId], references: [id], onDelete: Cascade)
 
-  action  DonationAction
+  action  DonationAction?
   message String
+  link    String?
   readAt  DateTime?
 
   createdAt DateTime @default(now())

@@ -41,6 +41,27 @@ export class NotificationService {
     }
   }
 
+  // Aviso administrativo (sem doação): novo cadastro, aprovação, etc. Também é
+  // melhor esforço — nunca pode derrubar a ação que o originou.
+  async notifyUsers(userIds: string[], message: string, link?: string): Promise<void> {
+    try {
+      const unique = [...new Set(userIds)]
+      if (unique.length === 0) return
+      await prisma.notification.createMany({ data: unique.map((userId) => ({ userId, message, link })) })
+    } catch (error) {
+      console.error('Falha ao gerar notificação', error)
+    }
+  }
+
+  async notifyAdmins(message: string, link?: string): Promise<void> {
+    try {
+      const admins = await prisma.user.findMany({ where: { role: Role.ADMIN, active: true }, select: { id: true } })
+      await this.notifyUsers(admins.map((a) => a.id), message, link)
+    } catch (error) {
+      console.error('Falha ao avisar administradores', error)
+    }
+  }
+
   // Receptores ativos da mesma cidade do doador; se o doador não informou
   // cidade, avisa todos os receptores ativos (melhor avisar a mais que a menos).
   private async nearbyRecipientUserIds(city: string | null): Promise<string[]> {

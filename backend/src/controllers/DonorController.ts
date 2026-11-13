@@ -1,16 +1,18 @@
 import { Request, Response } from 'express'
 import { z } from 'zod'
+import { ApprovalStatus } from '@prisma/client'
+import { ApprovalService } from '../services/ApprovalService'
 import { DonorType } from '@prisma/client'
 import { DonorService } from '../services/DonorService'
 import { getPagination, successResponse } from '../utils/pagination'
-import { optionalEmail } from '../utils/validation'
+import { optionalDocument, optionalEmail } from '../utils/validation'
 
 const donorService = new DonorService()
 
 const createDonorSchema = z.object({
   name: z.string().min(2, 'Nome deve ter ao menos 2 caracteres'),
   type: z.nativeEnum(DonorType).optional(),
-  document: z.string().optional(),
+  document: optionalDocument,
   contactName: z.string().optional(),
   phone: z.string().optional(),
   email: optionalEmail,
@@ -19,6 +21,12 @@ const createDonorSchema = z.object({
   state: z.string().optional(),
   zipCode: z.string().optional(),
 })
+
+const approvalSchema = z.object({
+  status: z.nativeEnum(ApprovalStatus),
+  note: z.string().max(300).optional(),
+})
+const approvalService = new ApprovalService()
 
 const updateDonorSchema = createDonorSchema.partial()
 
@@ -34,6 +42,7 @@ export class DonorController {
     const filter = {
       includeInactive: req.query.includeInactive === 'true',
       search: req.query.search as string | undefined,
+      approval: req.query.approval && ['PENDENTE', 'APROVADO', 'REJEITADO'].includes(String(req.query.approval)) ? (String(req.query.approval) as ApprovalStatus) : undefined,
     }
     const result = await donorService.findAll(filter, pagination)
     res.json(successResponse(result))
@@ -48,6 +57,12 @@ export class DonorController {
     const data = updateDonorSchema.parse(req.body)
     const donor = await donorService.update(String(req.params.id), data, req.user!)
     res.json(successResponse(donor, 'Doador atualizado com sucesso'))
+  }
+
+  async setApproval(req: Request, res: Response): Promise<void> {
+    const data = approvalSchema.parse(req.body)
+    const result = await approvalService.setStatus('donor', String(req.params.id), data.status, data.note)
+    res.json(successResponse(result, 'Situação do cadastro atualizada'))
   }
 
   async deactivate(req: Request, res: Response): Promise<void> {

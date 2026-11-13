@@ -4,6 +4,7 @@ import { AuthService } from '../services/AuthService'
 import { successResponse } from '../utils/pagination'
 import { setAuthCookies, clearAuthCookies, REFRESH_COOKIE } from '../utils/authCookies'
 import { UnauthorizedError } from '../utils/AppError'
+import { requiredDocument } from '../utils/validation'
 
 const authService = new AuthService()
 
@@ -16,7 +17,7 @@ const passwordSchema = z
 const donorProfileSchema = z.object({
   name: z.string().min(2, 'Nome do doador é obrigatório'),
   type: z.enum(['MERCADO', 'RESTAURANTE', 'FEIRA', 'OUTRO']).default('OUTRO'),
-  document: z.string().optional(),
+  document: requiredDocument,
   contactName: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
@@ -27,7 +28,7 @@ const donorProfileSchema = z.object({
 const recipientProfileSchema = z.object({
   name: z.string().min(2, 'Nome do receptor é obrigatório'),
   type: z.enum(['ONG', 'FAMILIA']).default('ONG'),
-  document: z.string().optional(),
+  document: requiredDocument,
   contactName: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),

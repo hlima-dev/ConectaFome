@@ -30,7 +30,8 @@ export function NotificationBell() {
   function handleOpenNotification(notification: AppNotification) {
     if (!notification.readAt) markRead.mutate(notification.id)
     setOpen(false)
-    navigate(`/doacoes/${notification.donationId}`)
+    if (notification.donationId) navigate(`/doacoes/${notification.donationId}`)
+    else if (notification.link) navigate(notification.link)
   }
 
   return (

@@ -1,16 +1,18 @@
 import { Request, Response } from 'express'
 import { z } from 'zod'
+import { ApprovalStatus } from '@prisma/client'
+import { ApprovalService } from '../services/ApprovalService'
 import { RecipientType } from '@prisma/client'
 import { RecipientService } from '../services/RecipientService'
 import { getPagination, successResponse } from '../utils/pagination'
-import { optionalEmail } from '../utils/validation'
+import { optionalDocument, optionalEmail } from '../utils/validation'
 
 const recipientService = new RecipientService()
 
 const createRecipientSchema = z.object({
   name: z.string().min(2, 'Nome deve ter ao menos 2 caracteres'),
   type: z.nativeEnum(RecipientType).optional(),
-  document: z.string().optional(),
+  document: optionalDocument,
   contactName: z.string().optional(),
   phone: z.string().optional(),
   email: optionalEmail,
@@ -20,6 +22,12 @@ const createRecipientSchema = z.object({
   zipCode: z.string().optional(),
   peopleServed: z.coerce.number().int().positive().optional(),
 })
+
+const approvalSchema = z.object({
+  status: z.nativeEnum(ApprovalStatus),
+  note: z.string().max(300).optional(),
+})
+const approvalService = new ApprovalService()
 
 const updateRecipientSchema = createRecipientSchema.partial()
 
@@ -35,6 +43,7 @@ export class RecipientController {
     const filter = {
       includeInactive: req.query.includeInactive === 'true',
       search: req.query.search as string | undefined,
+      approval: req.query.approval && ['PENDENTE', 'APROVADO', 'REJEITADO'].includes(String(req.query.approval)) ? (String(req.query.approval) as ApprovalStatus) : undefined,
     }
     const result = await recipientService.findAll(filter, pagination)
     res.json(successResponse(result))
@@ -49,6 +58,12 @@ export class RecipientController {
     const data = updateRecipientSchema.parse(req.body)
     const recipient = await recipientService.update(String(req.params.id), data, req.user!)
     res.json(successResponse(recipient, 'Receptor atualizado com sucesso'))
+  }
+
+  async setApproval(req: Request, res: Response): Promise<void> {
+    const data = approvalSchema.parse(req.body)
+    const result = await approvalService.setStatus('recipient', String(req.params.id), data.status, data.note)
+    res.json(successResponse(result, 'Situação do cadastro atualizada'))
   }
 
   async deactivate(req: Request, res: Response): Promise<void> {

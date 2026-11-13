@@ -19,6 +19,18 @@ const envSchema = z.object({
   // proxy da Vercel na frente = 2). Sem isso o limite de requisições enxerga
   // o IP do proxy e todos os usuários dividem o mesmo contador.
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+  // Cadastros públicos entram PENDENTE até a administração aprovar. Em um
+  // piloto fechado dá para desligar (REQUIRE_APPROVAL=false), mas o padrão é seguro.
+  REQUIRE_APPROVAL: z
+    .string()
+    .optional()
+    .transform((value) => (value === undefined ? true : value !== 'false')),
+  // Horas que uma reserva feita pelo próprio receptor pode ficar sem entrar em
+  // uma rota antes de a doação voltar a ficar disponível. 0 desliga.
+  RESERVATION_HOLD_HOURS: z.coerce.number().min(0).default(24),
+  // Segredo do agendador externo (GitHub Actions) que chama /maintenance/run.
+  // Sem ele, a rota fica desligada. Mínimo de 24 caracteres.
+  CRON_SECRET: z.string().min(24, 'CRON_SECRET deve ter ao menos 24 caracteres').optional(),
   APP_URL: z.string().url().default('http://localhost:5173'),
   // Geocodificação (endereço -> latitude/longitude) via Nominatim/OpenStreetMap.
   // Desligada nos testes. O serviço público limita a 1 requisição por segundo e

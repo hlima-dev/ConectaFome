@@ -3,7 +3,9 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { BarChart3, HeartHandshake, LayoutDashboard, LogOut, Menu, Package, Search, Store, Truck, User, X } from 'lucide-react'
 import { Logo } from '../components/Logo'
 import { NotificationBell } from '../components/NotificationBell'
-import { getStoredUser, logout as logoutRequest } from '../services/auth'
+import { logout as logoutRequest } from '../services/auth'
+import { useCurrentUser } from '../hooks/useCurrentUser'
+import { ApprovalBanner } from '../components/ApprovalBanner'
 import { ROLE_LABELS } from '../types/auth'
 import type { Role } from '../types/auth'
 
@@ -56,7 +58,7 @@ const navSections: NavSection[] = [
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const navigate = useNavigate()
-  const user = getStoredUser()
+  const user = useCurrentUser()
 
   async function handleLogout() {
     await logoutRequest()
@@ -163,6 +165,7 @@ export function AppLayout() {
         </header>
 
         <main className="flex-1 p-4 lg:p-6">
+          <ApprovalBanner user={user} />
           <Outlet />
         </main>
       </div>

@@ -1,7 +1,7 @@
 import { api } from './api'
 import type { Recipient, RecipientInput } from '../types/recipients'
 
-export async function listRecipients(params?: { includeInactive?: boolean; search?: string }): Promise<Recipient[]> {
+export async function listRecipients(params?: { includeInactive?: boolean; search?: string; approval?: string }): Promise<Recipient[]> {
   const response = await api.get('/recipients', { params })
   return response.data.data.data
 }

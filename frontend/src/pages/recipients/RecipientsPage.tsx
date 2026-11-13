@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '../../components/DataTable'
 import { StatusBadge } from '../../components/StatusBadge'
+import { ApprovalActions, ApprovalBadge } from '../../components/ApprovalControls'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useDeactivateRecipient, useRecipients } from '../../hooks/useRecipients'
 import { RECIPIENT_TYPE_LABELS } from '../../types/auth'
@@ -11,12 +12,13 @@ import { getErrorMessage } from '../../utils/errors'
 
 export function RecipientsPage() {
   const [includeInactive, setIncludeInactive] = useState(false)
+  const [approval, setApproval] = useState('')
   const [editingRecipient, setEditingRecipient] = useState<Recipient | null>(null)
   const [creating, setCreating] = useState(false)
   const [deactivating, setDeactivating] = useState<Recipient | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const { data: recipients, isLoading } = useRecipients({ includeInactive })
+  const { data: recipients, isLoading } = useRecipients({ includeInactive, approval: approval || undefined })
   const deactivateRecipient = useDeactivateRecipient()
 
   async function confirmDeactivate() {
@@ -36,6 +38,7 @@ export function RecipientsPage() {
     { header: 'Contato', cell: (r) => r.contactName || '—' },
     { header: 'Pessoas atendidas', cell: (r) => r.peopleServed ?? '—' },
     { header: 'Cidade/UF', cell: (r) => (r.city ? `${r.city}${r.state ? '/' + r.state : ''}` : '—') },
+    { header: 'Cadastro', cell: (r) => <ApprovalBadge status={r.user?.approvalStatus} /> },
     {
       header: 'Status',
       cell: (r) => <StatusBadge label={r.active ? 'Ativo' : 'Inativo'} tone={r.active ? 'green' : 'neutral'} />,
@@ -44,7 +47,8 @@ export function RecipientsPage() {
       header: '',
       className: 'text-right',
       cell: (r) => (
-        <div className="flex justify-end gap-3 text-sm">
+        <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
+          <ApprovalActions kind="recipients" id={r.id} name={r.name} status={r.user?.approvalStatus} />
           <button type="button" className="text-slate-500 hover:text-slate-900" onClick={() => setEditingRecipient(r)}>
             Editar
           </button>
@@ -72,7 +76,16 @@ export function RecipientsPage() {
         </button>
       </div>
 
-      <div className="mb-4 flex items-center gap-4">
+      <div className="mb-4 flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          Cadastro
+          <select className="input w-auto py-1" value={approval} onChange={(e) => setApproval(e.target.value)}>
+            <option value="">Todos</option>
+            <option value="PENDENTE">Em análise</option>
+            <option value="APROVADO">Aprovados</option>
+            <option value="REJEITADO">Rejeitados</option>
+          </select>
+        </label>
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} />
           Incluir inativos
