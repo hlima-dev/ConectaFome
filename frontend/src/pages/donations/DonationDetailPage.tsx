@@ -20,7 +20,9 @@ import { getStoredUser } from '../../services/auth'
 import { getErrorMessage } from '../../utils/errors'
 import { DonationTimeline } from './DonationTimeline'
 import { DonationPhotos } from '../../components/DonationPhotos'
-import { formatKg } from '../../utils/format'
+import { NextStepBanner } from '../../components/NextStepBanner'
+import { getNextStep } from '../../utils/nextStep'
+import { donationCode, formatKg } from '../../utils/format'
 import {
   DONATION_STATUS_LABELS,
   DONATION_STATUS_TONES,
@@ -203,7 +205,10 @@ export function DonationDetailPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">{donation.description}</h1>
-          <p className="text-sm text-slate-500">{FOOD_CATEGORY_LABELS[donation.category]}</p>
+          <p className="text-sm text-slate-500">
+            <span className="mr-2 font-mono text-xs text-slate-400">{donationCode(donation.number)}</span>
+            {FOOD_CATEGORY_LABELS[donation.category]}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <UrgencyBadge urgency={donation.urgency} />
@@ -212,6 +217,8 @@ export function DonationDetailPage() {
       </div>
 
       {error && <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+      <NextStepBanner step={getNextStep(donation, isAdmin ? 'admin' : isOwnerDonor ? 'donor' : 'recipient')} />
 
       <div className="mb-6 grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
         <div>

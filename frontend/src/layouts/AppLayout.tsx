@@ -6,6 +6,7 @@ import { NotificationBell } from '../components/NotificationBell'
 import { logout as logoutRequest } from '../services/auth'
 import { useCurrentUser } from '../hooks/useCurrentUser'
 import { ApprovalBanner } from '../components/ApprovalBanner'
+import { usePending } from '../hooks/useReports'
 import { ROLE_LABELS } from '../types/auth'
 import type { Role } from '../types/auth'
 
@@ -59,6 +60,8 @@ export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const navigate = useNavigate()
   const user = useCurrentUser()
+  const { data: pending } = usePending({ enabled: user?.role === 'ADMIN' })
+  const pendingTotal = pending?.total ?? 0
 
   async function handleLogout() {
     await logoutRequest()
@@ -118,6 +121,11 @@ export function AppLayout() {
                     >
                       <item.icon size={18} />
                       {item.label}
+                      {item.path === '/' && pendingTotal > 0 && (
+                        <span className="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white" aria-label={`${pendingTotal} pendências`}>
+                          {pendingTotal}
+                        </span>
+                      )}
                     </NavLink>
                   ))}
                 </div>

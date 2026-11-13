@@ -11,6 +11,7 @@ import { reportRouter } from './reports.routes'
 import { notificationRouter } from './notifications.routes'
 import { maintenanceRouter } from './maintenance.routes'
 import { fieldRouter } from './field.routes'
+import { publicRouter } from './public.routes'
 
 const router = Router()
 
@@ -25,5 +26,6 @@ router.use('/reports', reportRouter)
 router.use('/notifications', notificationRouter)
 router.use('/maintenance', maintenanceRouter)
 router.use('/field', fieldRouter)
+router.use('/public', publicRouter)
 
 export { router }

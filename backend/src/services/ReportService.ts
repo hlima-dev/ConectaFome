@@ -1,5 +1,8 @@
-import { DonationStatus, PickupRouteStatus, Prisma } from '@prisma/client'
+import { ApprovalStatus, DonationStatus, PhotoKind, PickupRouteStatus, Prisma } from '@prisma/client'
 import { prisma } from '../config/prisma'
+import { env } from '../config/env'
+import { computeUrgency } from '../utils/urgency'
+import { donationCode } from '../utils/donationCode'
 import { toCsv } from '../utils/csv'
 
 interface MonthlyKgFilter {
@@ -265,6 +268,97 @@ export class ReportService {
       collectedAt: {
         gte: new Date(Date.UTC(year, 0, 1)),
         lt: new Date(Date.UTC(year + 1, 0, 1)),
+      },
+    }
+  }
+
+  // "O que precisa de ação agora" para a administração. Cada grupo traz o total e
+  // os 5 mais antigos/urgentes; o painel leva para a lista completa.
+  async pending(now: Date = new Date()) {
+    const TOP = 5
+    const HOUR = 3_600_000
+
+    const [pendingUsers, open, withoutPhoto, routes] = await Promise.all([
+      prisma.user.findMany({
+        where: { approvalStatus: ApprovalStatus.PENDENTE },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, createdAt: true, donorProfile: { select: { id: true, name: true } }, recipientProfile: { select: { id: true, name: true } } },
+        take: 100,
+      }),
+      prisma.donation.findMany({
+        where: { status: { in: [DonationStatus.DISPONIVEL, DonationStatus.RESERVADA, DonationStatus.AGENDADA, DonationStatus.COLETADA] } },
+        select: {
+          id: true, number: true, description: true, status: true, routeId: true, matchedAt: true, collectedAt: true,
+          bestBeforeDate: true, pickupWindowEnd: true,
+          donor: { select: { name: true } }, recipient: { select: { name: true } },
+        },
+        take: 500,
+      }),
+      env.REQUIRE_OFFER_PHOTO
+        ? prisma.donation.findMany({
+            where: { status: DonationStatus.DISPONIVEL, photos: { none: { kind: PhotoKind.OFERTA } } },
+            select: { id: true, number: true, description: true, donor: { select: { name: true } } },
+            orderBy: { createdAt: 'asc' },
+            take: 50,
+          })
+        : Promise.resolve([]),
+      prisma.pickupRoute.findMany({
+        where: { status: { in: [PickupRouteStatus.PLANEJADA, PickupRouteStatus.EM_ANDAMENTO] }, scheduledFor: { lte: new Date(now.getTime() + 24 * HOUR) } },
+        orderBy: { scheduledFor: 'asc' },
+        select: { id: true, routeNumber: true, status: true, scheduledFor: true, volunteer: { select: { name: true } } },
+        take: 50,
+      }),
+    ])
+
+    const brief = (d: (typeof open)[number], extra: Record<string, unknown> = {}) => ({
+      id: d.id,
+      code: donationCode(d.number),
+      description: d.description,
+      donorName: d.donor.name,
+      recipientName: d.recipient?.name ?? null,
+      ...extra,
+    })
+    const hoursSince = (date: Date | null) => (date ? Math.round(((now.getTime() - date.getTime()) / HOUR) * 10) / 10 : null)
+
+    const urgentAvailable = open
+      .filter((d) => d.status === DonationStatus.DISPONIVEL)
+      .map((d) => ({ d, u: computeUrgency(d, now) }))
+      .filter(({ u }) => u?.level === 'URGENT')
+      .sort((a, b) => a.u!.hoursLeft - b.u!.hoursLeft)
+
+    const reservedWithoutRoute = open
+      .filter((d) => d.status === DonationStatus.RESERVADA && !d.routeId)
+      .sort((a, b) => (a.matchedAt?.getTime() ?? 0) - (b.matchedAt?.getTime() ?? 0))
+
+    const awaitingConfirmation = open
+      .filter((d) => d.status === DonationStatus.COLETADA && d.collectedAt && now.getTime() - d.collectedAt.getTime() > 24 * HOUR)
+      .sort((a, b) => a.collectedAt!.getTime() - b.collectedAt!.getTime())
+
+    const overdueScheduled = open
+      .filter((d) => d.status === DonationStatus.AGENDADA)
+      .map((d) => ({ d, u: computeUrgency(d, now) }))
+      .filter(({ u }) => u?.level === 'EXPIRED')
+
+    const approvals = pendingUsers.map((u) => ({
+      kind: u.donorProfile ? ('donor' as const) : ('recipient' as const),
+      id: (u.donorProfile ?? u.recipientProfile)?.id ?? u.id,
+      name: (u.donorProfile ?? u.recipientProfile)?.name ?? 'Cadastro sem perfil',
+      waitingHours: hoursSince(u.createdAt),
+    }))
+
+    return {
+      generatedAt: now,
+      total:
+        approvals.length + urgentAvailable.length + reservedWithoutRoute.length + awaitingConfirmation.length + overdueScheduled.length + withoutPhoto.length,
+      approvals: { count: approvals.length, items: approvals.slice(0, TOP) },
+      urgentAvailable: { count: urgentAvailable.length, items: urgentAvailable.slice(0, TOP).map(({ d, u }) => brief(d, { hoursLeft: u!.hoursLeft })) },
+      reservedWithoutRoute: { count: reservedWithoutRoute.length, items: reservedWithoutRoute.slice(0, TOP).map((d) => brief(d, { waitingHours: hoursSince(d.matchedAt) })) },
+      awaitingConfirmation: { count: awaitingConfirmation.length, items: awaitingConfirmation.slice(0, TOP).map((d) => brief(d, { waitingHours: hoursSince(d.collectedAt) })) },
+      overdueScheduled: { count: overdueScheduled.length, items: overdueScheduled.slice(0, TOP).map(({ d }) => brief(d)) },
+      withoutPhoto: { count: withoutPhoto.length, items: withoutPhoto.slice(0, TOP).map((d) => ({ id: d.id, code: donationCode(d.number), description: d.description, donorName: d.donor.name })) },
+      routesToday: {
+        count: routes.length,
+        items: routes.slice(0, TOP).map((r) => ({ id: r.id, routeNumber: r.routeNumber, status: r.status, scheduledFor: r.scheduledFor, volunteerName: r.volunteer.name })),
       },
     }
   }

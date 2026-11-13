@@ -9,6 +9,9 @@ const useMonthlyKg = vi.hoisted(() => vi.fn())
 
 vi.mock('../src/services/auth', () => ({ getStoredUser }))
 vi.mock('../src/hooks/useReports', () => ({ useReportSummary, useMonthlyKg }))
+// A fila de pendências e os primeiros passos têm testes próprios; aqui só importa se aparecem.
+vi.mock('../src/components/PendingPanel', () => ({ PendingPanel: () => <div data-testid="pending-panel" /> }))
+vi.mock('../src/components/GettingStarted', () => ({ GettingStarted: ({ role }: { role?: string }) => <div data-testid="getting-started">{role}</div> }))
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   BarChart: () => <div data-testid="bar-chart" />, Bar: () => null, CartesianGrid: () => null, Tooltip: () => null, XAxis: () => null, YAxis: () => null,
@@ -32,6 +35,12 @@ describe('Dashboard', () => {
     beforeEach(() => {
       getStoredUser.mockReturnValue({ name: 'Admin', role: 'ADMIN' })
       useReportSummary.mockReturnValue({ data: summary, isLoading: false })
+    })
+
+    it('mostra a fila de pendências e não os primeiros passos', () => {
+      renderDashboard()
+      expect(screen.getByTestId('pending-panel')).toBeInTheDocument()
+      expect(screen.queryByTestId('getting-started')).not.toBeInTheDocument()
     })
 
     it('mostra os seis indicadores e os dois gráficos', () => {

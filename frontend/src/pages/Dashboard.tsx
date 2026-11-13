@@ -7,22 +7,27 @@ import { ROLE_LABELS } from '../types/auth'
 import { useMonthlyKg, useReportSummary } from '../hooks/useReports'
 import { DONATION_STATUS_LABELS, type DonationStatus } from '../types/donations'
 import { formatKg } from '../utils/format'
+import { PendingPanel } from '../components/PendingPanel'
+import { GettingStarted } from '../components/GettingStarted'
 
 interface KpiCardProps {
   label: string
   value: string | number
   icon: LucideIcon
+  // O que o número significa (aparece ao passar o mouse e para leitores de tela).
+  help?: string
 }
 
-function KpiCard({ label, value, icon: Icon }: KpiCardProps) {
+function KpiCard({ label, value, icon: Icon, help }: KpiCardProps) {
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5">
+    <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5" title={help}>
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
         <Icon size={22} aria-hidden="true" />
       </span>
       <div className="min-w-0">
         <p className="text-2xl font-semibold text-slate-900">{value}</p>
         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
+        {help && <p className="mt-0.5 text-xs text-slate-400">{help}</p>}
       </div>
     </div>
   )
@@ -61,6 +66,8 @@ export function Dashboard() {
         {isAdmin ? 'Visão geral do impacto do ConectaFome. ' : ''}Bem-vindo(a), {user?.name} — {user ? ROLE_LABELS[user.role] : ''}
       </p>
 
+      {!isAdmin && <GettingStarted role={user?.role} />}
+
       {!isAdmin && (
         <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
           {user?.role === 'RECEPTOR' && (
@@ -80,14 +87,16 @@ export function Dashboard() {
         </div>
       )}
 
+      {isAdmin && <PendingPanel />}
+
       {isAdmin && isLoading && <p className="mt-6 text-sm text-slate-400">Carregando indicadores...</p>}
 
       {isAdmin && summary && (
         <>
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <KpiCard icon={Leaf} label="Kg resgatado (total)" value={formatKg(summary.totalKgRescued)} />
-            <KpiCard icon={Boxes} label="Doações resgatadas" value={summary.totalDonationsRescued} />
-            <KpiCard icon={PackageCheck} label="Doações entregues" value={summary.deliveredDonations} />
+            <KpiCard icon={Leaf} label="Kg resgatado (total)" value={formatKg(summary.totalKgRescued)} help="Peso coletado pelos voluntários" />
+            <KpiCard icon={Boxes} label="Doações resgatadas" value={summary.totalDonationsRescued} help="Já coletadas do doador" />
+            <KpiCard icon={PackageCheck} label="Doações entregues" value={summary.deliveredDonations} help="O receptor confirmou o recebimento" />
             <KpiCard icon={Truck} label="Rotas concluídas" value={summary.completedRoutes} />
             <KpiCard icon={Store} label="Doadores ativos" value={summary.activeDonors} />
             <KpiCard icon={HeartHandshake} label="Receptores ativos" value={summary.activeRecipients} />

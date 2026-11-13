@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { DataTable, type DataTableColumn } from '../../components/DataTable'
 import { StatusBadge } from '../../components/StatusBadge'
 import { ApprovalActions, ApprovalBadge } from '../../components/ApprovalControls'
@@ -13,7 +14,8 @@ import { getErrorMessage } from '../../utils/errors'
 
 export function DonorsPage() {
   const [includeInactive, setIncludeInactive] = useState(false)
-  const [approval, setApproval] = useState('')
+  const [searchParams] = useSearchParams()
+  const [approval, setApproval] = useState(searchParams.get('approval') ?? '')
   const [editingDonor, setEditingDonor] = useState<Donor | null>(null)
   const [creating, setCreating] = useState(false)
   const [deactivating, setDeactivating] = useState<Donor | null>(null)

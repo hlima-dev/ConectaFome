@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import { getByDonor, getByRecipient, getMonthlyKg, getRates, getSummary } from '../services/reports'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getByDonor, getByRecipient, getMonthlyKg, getPending, getRates, getSummary, runMaintenance } from '../services/reports'
 import type { ReportPeriod } from '../types/reports'
 
 export function useMonthlyKg(filters?: { year?: number; donorId?: string; recipientId?: string }) {
@@ -35,5 +35,27 @@ export function useRates(period?: ReportPeriod) {
   return useQuery({
     queryKey: ['reports', 'rates', period],
     queryFn: () => getRates(period),
+  })
+}
+
+// A fila do que precisa de ação: reconsulta a cada minuto e quando a janela volta ao foco.
+export function usePending(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ['pending'],
+    queryFn: getPending,
+    enabled: options?.enabled ?? true,
+    refetchInterval: 60_000,
+  })
+}
+
+export function useRunMaintenance() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: runMaintenance,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending'] })
+      queryClient.invalidateQueries({ queryKey: ['donations'] })
+      queryClient.invalidateQueries({ queryKey: ['opportunities'] })
+    },
   })
 }

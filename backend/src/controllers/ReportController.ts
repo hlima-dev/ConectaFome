@@ -57,4 +57,8 @@ export class ReportController {
     const result = await reportService.summary()
     res.json(successResponse(result))
   }
+
+  async pending(_req: Request, res: Response): Promise<void> {
+    res.json(successResponse(await reportService.pending()))
+  }
 }

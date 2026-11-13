@@ -7,6 +7,7 @@ import { computeUrgency, withUrgency } from '../utils/urgency'
 import { donationTransition } from './donationTransition'
 import { NotificationService } from './NotificationService'
 import { assertApproved } from './ApprovalService'
+import { donationCode, parseDonationCode, receiptSignature } from '../utils/donationCode'
 
 interface CreateDonationInput {
   donorId?: string
@@ -39,6 +40,13 @@ interface ListDonationsFilter {
   donorId?: string
   recipientId?: string
   category?: FoodCategory
+  // Busca livre: descrição, doador, receptor ou código (DOA-00042).
+  q?: string
+  // Período de registro (AAAA-MM-DD, inclusivo).
+  from?: string
+  to?: string
+  // 'prazo' = quem vence primeiro (fim da janela de coleta); padrão = mais recentes.
+  sort?: 'recentes' | 'prazo'
 }
 
 interface Requester {
@@ -105,6 +113,15 @@ export class DonationService {
       ...(filter.donorId && { donorId: filter.donorId }),
       ...(filter.recipientId && { recipientId: filter.recipientId }),
       ...(filter.category && { category: filter.category }),
+      ...this.searchWhere(filter.q),
+      ...(filter.from || filter.to
+        ? {
+            createdAt: {
+              ...(filter.from ? { gte: new Date(`${filter.from}T00:00:00.000Z`) } : {}),
+              ...(filter.to ? { lt: new Date(new Date(`${filter.to}T00:00:00.000Z`).getTime() + 86_400_000) } : {}),
+            },
+          }
+        : {}),
     }
 
     const [donations, total] = await Promise.all([
@@ -112,13 +129,28 @@ export class DonationService {
         where,
         skip: pagination.skip,
         take: pagination.limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: filter.sort === 'prazo' ? [{ pickupWindowEnd: 'asc' as const }, { createdAt: 'desc' as const }] : { createdAt: 'desc' as const },
         include: { donor: true, recipient: true, route: true, photos: this.coverPhoto },
       }),
       prisma.donation.count({ where }),
     ])
 
     return paginate(donations.map((d) => withUrgency(d)), total, pagination)
+  }
+
+  // Busca livre: texto na descrição, no nome do doador ou do receptor, ou o código da doação.
+  private searchWhere(q: string | undefined) {
+    const text = q?.trim()
+    if (!text) return {}
+    const number = parseDonationCode(text)
+    return {
+      OR: [
+        { description: { contains: text, mode: 'insensitive' as const } },
+        { donor: { name: { contains: text, mode: 'insensitive' as const } } },
+        { recipient: { name: { contains: text, mode: 'insensitive' as const } } },
+        ...(number !== null ? [{ number }] : []),
+      ],
+    }
   }
 
   async findById(id: string, requester: Requester) {
@@ -176,7 +208,9 @@ export class DonationService {
     })
 
     return {
-      number: `CF-${donation.id.slice(-8).toUpperCase()}`,
+      number: donationCode(donation.number),
+      // Vai no QR code do comprovante: quem escaneia confere se ele é autêntico.
+      verification: { code: donationCode(donation.number), signature: receiptSignature(donationCode(donation.number)) },
       issuedAt: new Date(),
       donor: party(donation.donor),
       recipient: donation.recipient ? party(donation.recipient) : null,

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DonationAction, DonationStatus, FoodCategory, Role, StorageCondition } from '@prisma/client'
 import { DonationService } from '../src/services/DonationService'
+import { isValidReceiptSignature } from '../src/utils/donationCode'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../src/utils/AppError'
 
 const mockPrisma = vi.hoisted(() => ({
@@ -484,6 +485,7 @@ describe('DonationService', () => {
   describe('getReceipt', () => {
     const coletada = (over: Record<string, unknown> = {}) => ({
       id: 'cl9x8y7z6abcd1234',
+      number: 42,
       donorId: 'd1',
       description: 'Marmitas',
       category: FoodCategory.PREPARADO,
@@ -506,8 +508,10 @@ describe('DonationService', () => {
 
       const receipt = await service.getReceipt('x', admin)
 
-      expect(receipt.number).toBe('CF-ABCD1234')
-      expect(receipt.number).toMatch(/^CF-[A-Z0-9]{8}$/)
+      expect(receipt.number).toBe('DOA-00042')
+      expect(receipt.verification.code).toBe('DOA-00042')
+      expect(isValidReceiptSignature('DOA-00042', receipt.verification.signature)).toBe(true)
+      expect(isValidReceiptSignature('DOA-00043', receipt.verification.signature)).toBe(false)
       expect(receipt.donor).toEqual({ name: 'Restaurante', document: '11.222.333/0001-44', address: 'Rua A, 1, Sorocaba, SP' })
       expect(receipt.recipient).toEqual({ name: 'ONG', document: null, address: 'Votorantim' })
       expect(receipt.donation).toMatchObject({ estimatedQuantityKg: 35, collectedQuantityKg: 32, storageCondition: 'REFRIGERADO' })

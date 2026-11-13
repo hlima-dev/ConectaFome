@@ -20,6 +20,7 @@ import { PickupRouteDetailPage } from './pages/logistics/PickupRouteDetailPage'
 import { ReportsPage } from './pages/reports/ReportsPage'
 import { ForgotPassword } from './pages/ForgotPassword'
 import { FieldPage } from './pages/field/FieldPage'
+import { VerifyReceipt } from './pages/VerifyReceipt'
 import { ResetPassword } from './pages/ResetPassword'
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
       <Route path="/inicio" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/cadastro" element={<Register />} />
+      <Route path="/verificar/:code/:signature" element={<VerifyReceipt />} />
       <Route path="/coleta/:token" element={<FieldPage />} />
       <Route path="/esqueci-senha" element={<ForgotPassword />} />
       <Route path="/redefinir-senha" element={<ResetPassword />} />

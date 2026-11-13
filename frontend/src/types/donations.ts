@@ -48,6 +48,8 @@ export interface Urgency {
 
 export interface Donation {
   id: string
+  // Número sequencial (código DOA-00042).
+  number: number
   donorId: string
   donor?: { id: string; name: string }
   category: FoodCategory
@@ -168,6 +170,8 @@ export const DONATION_STATUS_TONES: Record<DonationStatus, BadgeTone> = {
 
 export interface DonationReceipt {
   number: string
+  // Código + assinatura que vão no QR code para a conferência pública.
+  verification: { code: string; signature: string }
   issuedAt: string
   donor: { name: string; document: string | null; address: string | null }
   recipient: { name: string; document: string | null; address: string | null } | null

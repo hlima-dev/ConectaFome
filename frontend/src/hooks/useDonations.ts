@@ -7,6 +7,8 @@ import {
   getDonationEvents,
   getDonationReceipt,
   listDonations,
+  listDonationsPage,
+  type DonationListParams,
   listOpportunities,
   releaseDonation,
   reserveDonation,
@@ -130,5 +132,16 @@ export function useReleaseDonation(id: string) {
   return useMutation({
     mutationFn: () => releaseDonation(id),
     onSettled: () => invalidateAfterReservation(queryClient),
+  })
+}
+
+export function useDonationsPage(params: DonationListParams) {
+  return useQuery({
+    queryKey: ['donations', 'page', params],
+    queryFn: () => listDonationsPage(params),
+    // Mantém a página anterior na tela enquanto carrega a próxima (sem piscar) e
+    // atualiza sozinho: a situação das doações muda o tempo todo.
+    placeholderData: (previous) => previous,
+    refetchInterval: 60_000,
   })
 }

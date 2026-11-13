@@ -3,6 +3,7 @@ import { ArrowLeft, Printer } from 'lucide-react'
 import { useDonationReceipt } from '../../hooks/useDonations'
 import { FOOD_CATEGORY_LABELS, STORAGE_CONDITION_LABELS } from '../../types/donations'
 import { getErrorMessage } from '../../utils/errors'
+import { ReceiptQr } from '../../components/ReceiptQr'
 
 const formatDateTime = (value: string | null) =>
   value ? new Date(value).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'
@@ -103,6 +104,10 @@ export function ReceiptPage() {
             <Row label="Coletada">{formatDateTime(d.collectedAt)}</Row>
             <Row label="Recebimento confirmado">{formatDateTime(d.confirmedAt)}</Row>
           </dl>
+        </section>
+
+        <section className="mb-6 rounded-lg border border-slate-200 p-4" aria-label="Conferência de autenticidade">
+          <ReceiptQr code={receipt.verification.code} signature={receipt.verification.signature} />
         </section>
 
         <footer className="border-t border-slate-200 pt-4 text-xs text-slate-500">

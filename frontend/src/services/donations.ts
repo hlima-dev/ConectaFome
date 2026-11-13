@@ -69,3 +69,29 @@ export async function getDonationReceipt(id: string): Promise<DonationReceipt> {
   const response = await api.get(`/donations/${id}/receipt`)
   return response.data.data
 }
+
+export interface DonationListParams {
+  status?: DonationStatus
+  q?: string
+  from?: string
+  to?: string
+  sort?: 'recentes' | 'prazo'
+  page?: number
+  limit?: number
+}
+
+export interface PageMeta {
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+  hasNext: boolean
+  hasPrev: boolean
+}
+
+// Lista paginada, com busca, período e ordem (usada pela tela de Doações).
+export async function listDonationsPage(params: DonationListParams): Promise<{ data: Donation[]; meta: PageMeta }> {
+  const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v !== undefined))
+  const response = await api.get('/donations', { params: clean })
+  return response.data.data
+}

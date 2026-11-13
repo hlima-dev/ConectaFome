@@ -7,3 +7,8 @@ export function formatKg(value: number | string | null | undefined): string {
   if (!Number.isFinite(n)) return '—'
   return `${n.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kg`
 }
+
+// Número curto da doação: DOA-00042.
+export function donationCode(number: number | null | undefined): string {
+  return number === null || number === undefined ? '—' : `DOA-${String(number).padStart(5, '0')}`
+}

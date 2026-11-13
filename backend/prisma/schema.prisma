@@ -307,7 +307,9 @@ model Vehicle {
 // ─── Doação ───
 
 model Donation {
-  id String @id @default(cuid())
+  id     String @id @default(cuid())
+  // Número curto e sequencial para citar a doação (DOA-00042), ao lado do id interno.
+  number Int    @unique @default(autoincrement())
 
   donorId String
   donor   Donor  @relation(fields: [donorId], references: [id])

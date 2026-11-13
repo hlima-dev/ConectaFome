@@ -10,6 +10,16 @@ import { optionalDate } from '../utils/validation'
 const donationService = new DonationService()
 const photoService = new PhotoService()
 
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a data no formato AAAA-MM-DD').refine((v) => !Number.isNaN(Date.parse(v)), 'Data inválida')
+
+// Filtros extras da lista (busca, período, ordem). Vazio vale como ausente.
+const listExtraSchema = z.object({
+  q: z.preprocess((v) => (v === '' ? undefined : v), z.string().max(80).optional()),
+  from: z.preprocess((v) => (v === '' ? undefined : v), isoDay.optional()),
+  to: z.preprocess((v) => (v === '' ? undefined : v), isoDay.optional()),
+  sort: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['recentes', 'prazo']).optional()),
+})
+
 const photoKindSchema = z.object({ kind: z.enum(['OFERTA', 'ENTREGA']).default('OFERTA') })
 
 const createDonationSchema = z.object({
@@ -45,6 +55,7 @@ export class DonationController {
       donorId: req.query.donorId as string | undefined,
       recipientId: req.query.recipientId as string | undefined,
       category: req.query.category as FoodCategory | undefined,
+      ...listExtraSchema.parse(req.query),
     }
     const result = await donationService.findAll(filter, pagination, req.user!)
     res.json(successResponse(result))
