@@ -18,6 +18,8 @@ import { PickupRoutesPage } from './pages/logistics/PickupRoutesPage'
 import { PickupRouteFormPage } from './pages/logistics/PickupRouteFormPage'
 import { PickupRouteDetailPage } from './pages/logistics/PickupRouteDetailPage'
 import { ReportsPage } from './pages/reports/ReportsPage'
+import { ForgotPassword } from './pages/ForgotPassword'
+import { ResetPassword } from './pages/ResetPassword'
 
 function App() {
   return (
@@ -25,6 +27,8 @@ function App() {
       <Route path="/inicio" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/cadastro" element={<Register />} />
+      <Route path="/esqueci-senha" element={<ForgotPassword />} />
+      <Route path="/redefinir-senha" element={<ResetPassword />} />
 
       <Route
         path="/"

@@ -48,6 +48,9 @@ const registerSchema = z.object({
   recipient: recipientProfileSchema.optional(),
 })
 
+const forgotSchema = z.object({ email: z.string().email('E-mail inválido') })
+const resetSchema = z.object({ token: z.string().min(20), password: passwordSchema })
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -112,5 +115,23 @@ export class AuthController {
     const data = changePasswordSchema.parse(req.body)
     const result = await authService.changePassword(req.user!.id, data.currentPassword, data.newPassword)
     res.json(successResponse(null, result.message))
+  }
+
+  async forgotPassword(req: Request, res: Response): Promise<void> {
+    const { email } = forgotSchema.parse(req.body)
+    await authService.forgotPassword(email)
+    // Resposta única: não revela se o e-mail tem cadastro.
+    res.json(successResponse(null, 'Se houver uma conta com esse e-mail, enviamos o link para criar uma nova senha.'))
+  }
+
+  async resetPassword(req: Request, res: Response): Promise<void> {
+    const { token, password } = resetSchema.parse(req.body)
+    await authService.resetPassword(token, password)
+    res.json(successResponse(null, 'Senha redefinida. Entre com a nova senha.'))
+  }
+
+  async adminResetLink(req: Request, res: Response): Promise<void> {
+    const result = await authService.createResetLinkForUser(String(req.params.userId))
+    res.json(successResponse(result, 'Link gerado. Envie à pessoa; vale por 1 hora.'))
   }
 }

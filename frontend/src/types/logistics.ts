@@ -88,6 +88,8 @@ export interface PickupRoute {
   canceledAt: string | null
   notes: string | null
   donations: Donation[]
+  // Paradas que não deram certo nesta rota (só no detalhe).
+  failedDonations?: Donation[]
   // Só no detalhe da rota (GET /pickup-routes/:id e respostas das ações).
   load?: VehicleLoad
   plan?: RoutePlan

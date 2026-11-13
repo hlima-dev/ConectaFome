@@ -49,3 +49,13 @@ export async function cancelPickupRoute(id: string): Promise<PickupRoute> {
   const response = await api.patch(`/pickup-routes/${id}/cancel`)
   return response.data.data
 }
+
+export async function collectRouteStop(routeId: string, donationId: string, quantityKg?: number): Promise<PickupRoute> {
+  const response = await api.patch(`/pickup-routes/${routeId}/stops/${donationId}/collect`, { quantityKg })
+  return response.data.data
+}
+
+export async function failRouteStop(routeId: string, donationId: string, reason: string, note?: string): Promise<PickupRoute> {
+  const response = await api.patch(`/pickup-routes/${routeId}/stops/${donationId}/fail`, { reason, note })
+  return response.data.data
+}

@@ -14,6 +14,8 @@ vi.mock('../src/hooks/usePickupRoutes', () => ({
   useAttachDonation: () => idle,
   useDetachDonation: () => idle,
   useCancelRoute: () => idle,
+  useCollectStop: () => idle,
+  useFailStop: () => idle,
   useStartRoute: () => ({ mutateAsync: startAsync, isPending: false }),
   useCompleteRoute: () => ({ mutateAsync: completeAsync, isPending: false }),
 }))
@@ -125,5 +127,48 @@ describe('PickupRouteDetailPage', () => {
     renderPage()
     expect(screen.getByText('8,5 kg')).toBeInTheDocument()
     expect(screen.queryByLabelText(/Kg coletado de/)).not.toBeInTheDocument()
+  })
+})
+
+describe('PickupRouteDetailPage — paradas', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const renderOngoing = (data: Record<string, unknown>) => {
+    usePickupRoute.mockReturnValue({ data: route({ status: 'EM_ANDAMENTO', ...data }), isLoading: false })
+    return render(
+      <MemoryRouter initialEntries={['/rotas/r1']}>
+        <Routes>
+          <Route path="/rotas/:id" element={<PickupRouteDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+  }
+
+  it('rota em andamento oferece "Coletada" e "Não coletada" por parada aberta', () => {
+    renderOngoing({ donations: [donation('d1', 'Pães', '10'), { ...donation('d2', 'Leite', '5'), status: 'COLETADA' }] })
+    expect(screen.getAllByRole('button', { name: 'Coletada' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Não coletada' })).toHaveLength(1)
+    expect(screen.getByText('Resolvida')).toBeInTheDocument()
+  })
+
+  it('"Não coletada" abre o motivo e explica o que acontece com a doação', async () => {
+    const user = userEvent.setup()
+    renderOngoing({ donations: [donation('d1', 'Pães', '10')] })
+    await user.click(screen.getByRole('button', { name: 'Não coletada' }))
+
+    expect(await screen.findByText('Coleta não realizada')).toBeInTheDocument()
+    expect(screen.getByText(/volta a ficar reservada/)).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('O que aconteceu?'), 'PRODUTO_IMPROPRIO')
+    expect(screen.getByText(/será cancelada/)).toBeInTheDocument()
+  })
+
+  it('mostra as paradas não realizadas com o motivo', () => {
+    renderOngoing({
+      donations: [donation('d1', 'Pães', '10')],
+      failedDonations: [{ ...donation('d9', 'Iogurte', '3'), status: 'RESERVADA', routeId: null, pickupFailureReason: 'DOADOR_AUSENTE', pickupFailureNote: 'portão fechado' }],
+    })
+    expect(screen.getByText('Paradas não realizadas (1)')).toBeInTheDocument()
+    expect(screen.getByText(/Doador ausente — portão fechado/)).toBeInTheDocument()
   })
 })

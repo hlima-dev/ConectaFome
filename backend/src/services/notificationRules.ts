@@ -9,6 +9,8 @@ export interface NotificationAudience {
   adminIds: string[]
   // Usuários de receptores ativos na cidade do doador — só usado em CRIADA.
   nearbyRecipientUserIds: string[]
+  // Informação extra do evento (ex.: motivo da coleta que falhou).
+  detail?: string
 }
 
 export interface PlannedNotification {
@@ -51,6 +53,9 @@ export function planNotifications(action: DonationAction, a: NotificationAudienc
       break
     case DonationAction.CONFIRMADA:
       to([a.donorUserId], `${recipient} confirmou o recebimento de ${d}.`)
+      break
+    case DonationAction.COLETA_FALHOU:
+      to([a.donorUserId, a.recipientUserId, ...a.adminIds], `A coleta de ${d} não foi realizada${a.detail ? `: ${a.detail}` : ''}.`)
       break
     case DonationAction.CANCELADA:
       to([a.donorUserId, a.recipientUserId], `${d} foi cancelada.`)

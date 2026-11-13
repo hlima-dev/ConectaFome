@@ -2,18 +2,22 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { FailStopModal } from '../../components/FailStopModal'
 import { RoutePlanPanel } from '../../components/RoutePlanPanel'
 import { StatusBadge } from '../../components/StatusBadge'
 import {
   useAttachDonation,
   useCancelRoute,
+  useCollectStop,
   useCompleteRoute,
   useDetachDonation,
+  useFailStop,
   usePickupRoute,
   useStartRoute,
 } from '../../hooks/usePickupRoutes'
 import { useDonations } from '../../hooks/useDonations'
-import { DONATION_STATUS_LABELS, DONATION_STATUS_TONES } from '../../types/donations'
+import { DONATION_STATUS_LABELS, DONATION_STATUS_TONES, PICKUP_FAILURE_LABELS } from '../../types/donations'
+import type { Donation } from '../../types/donations'
 import { PICKUP_ROUTE_STATUS_LABELS, PICKUP_ROUTE_STATUS_TONES } from '../../types/logistics'
 import { getErrorMessage } from '../../utils/errors'
 import { formatKg } from '../../utils/format'
@@ -32,6 +36,7 @@ export function PickupRouteDetailPage() {
   // Quantidades coletadas digitadas (por doação); vazio = vale a estimada.
   const [collected, setCollected] = useState<Record<string, string>>({})
   const [canceling, setCanceling] = useState(false)
+  const [failing, setFailing] = useState<Donation | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const attachDonation = useAttachDonation(id ?? '')
@@ -39,6 +44,8 @@ export function PickupRouteDetailPage() {
   const startRoute = useStartRoute(id ?? '')
   const completeRoute = useCompleteRoute(id ?? '')
   const cancelRoute = useCancelRoute(id ?? '')
+  const collectStop = useCollectStop(id ?? '')
+  const failStop = useFailStop(id ?? '')
 
   // Doações disponíveis pra anexar: já casadas (RESERVADA) e ainda sem
   // rota nenhuma — só faz sentido buscar isso com a rota planejada.
@@ -162,7 +169,7 @@ export function PickupRouteDetailPage() {
                   <th className="py-2">Receptor</th>
                   <th className="py-2">Status</th>
                   <th className="py-2">{isOngoing ? 'Kg coletado' : 'Kg'}</th>
-                  {isPlanned && <th className="py-2 text-right">Ação</th>}
+                  {(isPlanned || isOngoing) && <th className="py-2 text-right">Ação</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -204,6 +211,34 @@ export function PickupRouteDetailPage() {
                         </button>
                       </td>
                     )}
+                    {isOngoing && (
+                      <td className="py-2 text-right">
+                        {donation.status === 'AGENDADA' ? (
+                          <div className="flex justify-end gap-3 whitespace-nowrap">
+                            <button
+                              type="button"
+                              disabled={collectStop.isPending}
+                              className="font-medium text-emerald-700 hover:text-emerald-900 disabled:opacity-50"
+                              onClick={() =>
+                                runAction(() =>
+                                  collectStop.mutateAsync({
+                                    donationId: donation.id,
+                                    quantityKg: collected[donation.id] ? Number(collected[donation.id]) : undefined,
+                                  }),
+                                )
+                              }
+                            >
+                              Coletada
+                            </button>
+                            <button type="button" className="text-red-600 hover:text-red-800" onClick={() => setFailing(donation)}>
+                              Não coletada
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">Resolvida</span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -243,6 +278,25 @@ export function PickupRouteDetailPage() {
         )}
       </div>
 
+      {(route.failedDonations?.length ?? 0) > 0 && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
+          <h2 className="mb-3 text-base font-semibold text-amber-900">Paradas não realizadas ({route.failedDonations!.length})</h2>
+          <ul className="divide-y divide-amber-100 text-sm">
+            {route.failedDonations!.map((d) => (
+              <li key={d.id} className="py-2">
+                <p className="font-medium text-slate-900">{d.description} <span className="font-normal text-slate-500">· {d.donor?.name}</span></p>
+                <p className="text-amber-900">
+                  {d.pickupFailureReason ? PICKUP_FAILURE_LABELS[d.pickupFailureReason] : 'Motivo não informado'}
+                  {d.pickupFailureNote ? ` — ${d.pickupFailureNote}` : ''}
+                  {' · '}
+                  {d.status === 'CANCELADA' ? 'doação cancelada' : d.routeId ? 'em outra rota' : 'volta para reagendar'}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-3">
         {isPlanned && (
           <>
@@ -272,12 +326,30 @@ export function PickupRouteDetailPage() {
             disabled={completeRoute.isPending}
             className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
           >
-            {completeRoute.isPending ? 'Concluindo...' : 'Concluir rota (marca doações como coletadas)'}
+            {completeRoute.isPending ? 'Concluindo...' : 'Concluir rota (as paradas ainda abertas viram coletadas)'}
           </button>
         )}
 
         {isTerminal && <p className="text-sm text-slate-500">Este é um estado final, sem mais ações disponíveis.</p>}
       </div>
+
+      {failing && (
+        <FailStopModal
+          description={failing.description}
+          isLoading={failStop.isPending}
+          error={error}
+          onClose={() => setFailing(null)}
+          onConfirm={async (reason, note) => {
+            setError(null)
+            try {
+              await failStop.mutateAsync({ donationId: failing.id, reason, note: note || undefined })
+              setFailing(null)
+            } catch (err) {
+              setError(getErrorMessage(err))
+            }
+          }}
+        />
+      )}
 
       {canceling && (
         <ConfirmDialog

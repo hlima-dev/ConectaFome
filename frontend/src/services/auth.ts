@@ -11,6 +11,21 @@ export async function register(data: RegisterInput): Promise<AuthResponse> {
   return response.data.data
 }
 
+export async function forgotPassword(email: string): Promise<string> {
+  const response = await api.post('/auth/forgot-password', { email })
+  return response.data.message
+}
+
+export async function resetPassword(token: string, password: string): Promise<string> {
+  const response = await api.post('/auth/reset-password', { token, password })
+  return response.data.message
+}
+
+export async function createResetLink(userId: string): Promise<{ link: string; expiresAt: string }> {
+  const response = await api.post(`/auth/users/${userId}/reset-link`)
+  return response.data.data
+}
+
 export async function me(): Promise<User> {
   const response = await api.get('/auth/me')
   return response.data.data

@@ -66,6 +66,17 @@ enum DonationAction {
   CONFIRMADA
   CANCELADA
   VENCIDA
+  COLETA_FALHOU
+}
+
+// Por que uma parada da rota não foi coletada. DOADOR_AUSENTE, SEM_ESPACO_NO_VEICULO
+// e OUTRO devolvem a doação para reagendar; RECUSADO e PRODUTO_IMPROPRIO a cancelam.
+enum PickupFailureReason {
+  DOADOR_AUSENTE
+  RECUSADO
+  PRODUTO_IMPROPRIO
+  SEM_ESPACO_NO_VEICULO
+  OUTRO
 }
 
 // Ciclo de vida de uma doação: DISPONIVEL -> RESERVADA -> AGENDADA ->
@@ -119,6 +130,7 @@ model User {
   recipientProfile Recipient?
   donationEvents   DonationEvent[]
   notifications    Notification[]
+  passwordResets   PasswordResetToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -127,6 +139,23 @@ model User {
 }
 
 // ─── Doadores e Receptores ───
+
+model PasswordResetToken {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Só o hash (SHA-256) fica no banco: quem lê o banco não consegue usar o link.
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
 
 model Donor {
   id     String  @id @default(cuid())
@@ -261,6 +290,14 @@ model Donation {
   canceledAt  DateTime?
   expiredAt   DateTime?
 
+  // Última tentativa de coleta que não deu certo (some quando a doação é
+  // anexada a uma nova rota). failedRoute guarda em qual rota foi.
+  pickupFailureReason PickupFailureReason?
+  pickupFailureNote   String?
+  pickupFailedAt      DateTime?
+  failedRouteId       String?
+  failedRoute         PickupRoute?         @relation("FailedStops", fields: [failedRouteId], references: [id])
+
   notes String? @db.Text
 
   events        DonationEvent[]
@@ -291,8 +328,12 @@ model DonationEvent {
   fromStatus DonationStatus?
   toStatus   DonationStatus
 
-  actorId String?
-  actor   User?   @relation(fields: [actorId], references: [id])
+  actorId    String?
+  actor      User?   @relation(fields: [actorId], references: [id])
+  // Quem agiu quando não é um usuário do sistema (ex.: voluntário pelo link de campo).
+  actorLabel String?
+  // Detalhe do evento (ex.: motivo da coleta que falhou).
+  detail     String?
 
   createdAt DateTime @default(now())
 
@@ -346,7 +387,8 @@ model PickupRoute {
   canceledAt   DateTime?
   notes        String?           @db.Text
 
-  donations Donation[]
+  donations       Donation[]
+  failedDonations Donation[] @relation("FailedStops")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

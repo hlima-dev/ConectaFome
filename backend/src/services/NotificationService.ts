@@ -2,13 +2,15 @@ import { DonationAction, Role } from '@prisma/client'
 import { prisma } from '../config/prisma'
 import { NotFoundError } from '../utils/AppError'
 import { planNotifications } from './notificationRules'
+import { emailService } from './EmailService'
+import { env } from '../config/env'
 
 export class NotificationService {
   // Gera os avisos de um evento da doação. É "melhor esforço": roda depois da
   // transição já gravada e uma falha aqui nunca pode desfazer ou travar a
   // ação principal (o histórico da doação é a fonte de verdade, o sino é
   // conveniência).
-  async onDonationEvent(action: DonationAction, donationId: string, actorId?: string): Promise<void> {
+  async onDonationEvent(action: DonationAction, donationId: string, actorId?: string, detail?: string): Promise<void> {
     try {
       const donation = await prisma.donation.findUnique({
         where: { id: donationId },
@@ -29,12 +31,14 @@ export class NotificationService {
         recipientName: donation.recipient?.name ?? null,
         adminIds: admins.map((a) => a.id),
         nearbyRecipientUserIds: nearby,
+        detail,
       })
 
       if (planned.length > 0) {
         await prisma.notification.createMany({
           data: planned.map((n) => ({ userId: n.userId, donationId, action, message: n.message })),
         })
+        void this.emailUsers(planned.map((n) => ({ userId: n.userId, message: n.message })), `/doacoes/${donationId}`, 'Abrir a doação')
       }
     } catch (error) {
       console.error('Falha ao gerar notificações da doação', donationId, error)
@@ -48,6 +52,7 @@ export class NotificationService {
       const unique = [...new Set(userIds)]
       if (unique.length === 0) return
       await prisma.notification.createMany({ data: unique.map((userId) => ({ userId, message, link })) })
+      void this.emailUsers(unique.map((userId) => ({ userId, message })), link ?? '/', 'Abrir o ConectaFome')
     } catch (error) {
       console.error('Falha ao gerar notificação', error)
     }
@@ -59,6 +64,27 @@ export class NotificationService {
       await this.notifyUsers(admins.map((a) => a.id), message, link)
     } catch (error) {
       console.error('Falha ao avisar administradores', error)
+    }
+  }
+
+  // Espelha os avisos por e-mail (se houver SMTP). Melhor esforço, em segundo
+  // plano, com teto por evento para não estourar o limite do plano gratuito.
+  private async emailUsers(items: { userId: string; message: string }[], link: string, label: string): Promise<void> {
+    try {
+      if (!emailService.enabled || items.length === 0) return
+      const limited = items.slice(0, env.EMAIL_MAX_PER_EVENT)
+      const users = await prisma.user.findMany({
+        where: { id: { in: limited.map((i) => i.userId) }, active: true },
+        select: { id: true, email: true },
+      })
+      const emailById = new Map(users.map((u) => [u.id, u.email]))
+      for (const item of limited) {
+        const to = emailById.get(item.userId)
+        if (!to) continue
+        await emailService.send({ to, subject: `ConectaFome: ${item.message.slice(0, 80)}`, text: item.message, action: { label, link } })
+      }
+    } catch (error) {
+      console.error('Falha ao enviar e-mails de aviso', error)
     }
   }
 

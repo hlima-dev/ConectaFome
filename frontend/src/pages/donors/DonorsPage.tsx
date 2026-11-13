@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '../../components/DataTable'
 import { StatusBadge } from '../../components/StatusBadge'
 import { ApprovalActions, ApprovalBadge } from '../../components/ApprovalControls'
+import { ResetLinkButton } from '../../components/ResetLinkButton'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useDeactivateDonor, useDonors } from '../../hooks/useDonors'
 import { DONOR_TYPE_LABELS } from '../../types/auth'
@@ -48,6 +49,7 @@ export function DonorsPage() {
       className: 'text-right',
       cell: (d) => (
         <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
+          <ResetLinkButton userId={d.userId} name={d.name} />
           <ApprovalActions kind="donors" id={d.id} name={d.name} status={d.user?.approvalStatus} />
           <button type="button" className="text-slate-500 hover:text-slate-900" onClick={() => setEditingDonor(d)}>
             Editar

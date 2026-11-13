@@ -31,8 +31,11 @@ export function DonationTimeline({ events }: { events: DonationEvent[] }) {
           </div>
           <p className="text-xs text-slate-500">
             {formatDateTime(event.createdAt)} ·{' '}
-            {event.actor ? `${event.actor.name} (${ROLE_LABELS[event.actor.role]})` : 'Sem usuário registrado'}
+            {event.actor
+              ? `${event.actor.name} (${ROLE_LABELS[event.actor.role]})`
+              : event.actorLabel ?? 'Sistema (automático)'}
           </p>
+          {event.detail && <p className="mt-0.5 text-xs text-amber-800">{event.detail}</p>}
         </li>
       ))}
     </ol>

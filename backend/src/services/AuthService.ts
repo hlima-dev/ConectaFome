@@ -1,9 +1,11 @@
 import bcrypt from 'bcryptjs'
+import { createHash, randomBytes } from 'node:crypto'
 import { ApprovalStatus, User } from '@prisma/client'
 import { prisma } from '../config/prisma'
 import { env } from '../config/env'
 import { geocoder } from './GeocodingService'
 import { NotificationService } from './NotificationService'
+import { absoluteLink, emailService } from './EmailService'
 import { generateTokenPair, verifyRefreshToken } from '../utils/jwt'
 import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from '../utils/AppError'
 
@@ -50,6 +52,11 @@ interface LoginInput {
 // tentativa contra a mesma conta).
 const MAX_FAILED_LOGIN_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 1000 * 60 * 15 // 15 minutos
+
+// Link de redefinição de senha: vale 1 hora e no máximo 1 pedido por minuto por conta.
+const RESET_TOKEN_TTL_MS = 1000 * 60 * 60
+const RESET_MIN_INTERVAL_MS = 1000 * 60
+const hashToken = (token: string) => createHash('sha256').update(token).digest('hex')
 
 export class AuthService {
   private notifications = new NotificationService()
@@ -279,5 +286,59 @@ export class AuthService {
     }
 
     return user
+  }
+
+  // Gera um link de redefinição de senha (só o hash fica no banco).
+  private async issueResetToken(userId: string) {
+    const token = randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS)
+    await prisma.passwordResetToken.create({ data: { userId, tokenHash: hashToken(token), expiresAt } })
+    return { link: absoluteLink(`/redefinir-senha?token=${token}`), expiresAt }
+  }
+
+  // "Esqueci minha senha": responde igual exista ou não a conta (não revela quem
+  // tem cadastro). Se existir e houver e-mail configurado, envia o link.
+  async forgotPassword(email: string): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user || !user.active) return
+
+    const recent = await prisma.passwordResetToken.findFirst({
+      where: { userId: user.id, createdAt: { gt: new Date(Date.now() - RESET_MIN_INTERVAL_MS) } },
+    })
+    if (recent) return
+
+    const { link } = await this.issueResetToken(user.id)
+    await emailService.send({
+      to: user.email,
+      subject: 'ConectaFome: redefinição de senha',
+      text: 'Recebemos um pedido para redefinir a sua senha. O link vale por 1 hora. Se não foi você, ignore este e-mail: nada muda na sua conta.',
+      action: { label: 'Criar nova senha', link },
+    })
+  }
+
+  // Para quem não tem e-mail confiável (é comum em ONGs): a administração gera
+  // o link e entrega por WhatsApp.
+  async createResetLinkForUser(userId: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, active: true } })
+    if (!user) throw new NotFoundError('Usuário')
+    if (!user.active) throw new ValidationError('A conta está inativa')
+    return this.issueResetToken(user.id)
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash: hashToken(token) } })
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      throw new ValidationError('Este link de redefinição é inválido ou já expirou. Peça um novo.')
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, env.BCRYPT_SALT_ROUNDS)
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: record.userId },
+        data: { password: passwordHash, refreshToken: null, failedLoginAttempts: 0, lockedUntil: null },
+      }),
+      // Usa este e invalida qualquer outro link pendente da mesma conta.
+      prisma.passwordResetToken.updateMany({ where: { userId: record.userId, usedAt: null }, data: { usedAt: new Date() } }),
+    ])
   }
 }

@@ -53,6 +53,12 @@ describe('notificationRules — planNotifications', () => {
     expect(ids(plan(DonationAction.CONFIRMADA, { actorId: 'u-rec' }))).toEqual(['u-donor'])
   })
 
+  it('COLETA_FALHOU avisa doador, receptor e administração, com o motivo', () => {
+    const result = plan(DonationAction.COLETA_FALHOU, { detail: 'Doador ausente' })
+    expect(ids(result)).toEqual(['u-admin', 'u-donor', 'u-rec'])
+    expect(result[0].message).toBe('A coleta de "Pães do dia" não foi realizada: Doador ausente.')
+  })
+
   it('CANCELADA e VENCIDA avisam quem não foi o autor', () => {
     expect(ids(plan(DonationAction.CANCELADA, { actorId: 'u-donor' }))).toEqual(['u-rec'])
     expect(ids(plan(DonationAction.VENCIDA, { actorId: 'u-admin' }))).toEqual(['u-donor', 'u-rec'])

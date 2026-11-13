@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { DonationAction, DonationStatus, PickupRouteStatus } from '@prisma/client'
+import { DonationAction, DonationStatus, PickupFailureReason, PickupRouteStatus } from '@prisma/client'
 import { PickupRouteService } from '../src/services/PickupRouteService'
 import { NotFoundError, ValidationError } from '../src/utils/AppError'
 
@@ -84,7 +84,7 @@ describe('PickupRouteService', () => {
 
       expect(mockPrisma.donation.update).toHaveBeenCalledWith({
         where: { id: 'd1' },
-        data: { status: DonationStatus.AGENDADA, routeId: 'r1' },
+        data: { status: DonationStatus.AGENDADA, routeId: 'r1', pickupFailureReason: null, pickupFailureNote: null, pickupFailedAt: null, failedRouteId: null },
       })
       expect(notify).toHaveBeenCalledWith(DonationAction.AGENDADA, 'd1', 'admin_1')
       expect(mockPrisma.donationEvent.create).toHaveBeenCalledWith({
@@ -330,6 +330,72 @@ describe('PickupRouteService', () => {
     it('rejeita cancelar uma rota que já não está mais planejada', async () => {
       mockPrisma.pickupRoute.findUnique.mockResolvedValue({ id: 'r1', status: PickupRouteStatus.CONCLUIDA })
       await expect(service.cancel('r1')).rejects.toThrow(ValidationError)
+    })
+  })
+
+  describe('paradas: coletar e falhar uma a uma', () => {
+    const route = { id: 'r1', status: PickupRouteStatus.EM_ANDAMENTO }
+    const stop = (over: Record<string, unknown> = {}) => ({ id: 'd1', routeId: 'r1', status: DonationStatus.AGENDADA, estimatedQuantityKg: 20, ...over })
+
+    beforeEach(() => {
+      mockPrisma.pickupRoute.findUnique.mockResolvedValue({ ...route, donations: [], vehicle: null, volunteer: null })
+      mockPrisma.donation.findUnique.mockResolvedValue(stop())
+    })
+
+    it('coleta a parada: COLETADA na hora, com a quantidade conferida e quem agiu', async () => {
+      await service.collectStop('r1', 'd1', { quantityKg: 18.5 }, { label: 'Voluntário Carlos (link de campo)' })
+
+      expect(mockPrisma.donation.update.mock.calls[0][0].data).toMatchObject({ status: DonationStatus.COLETADA, collectedQuantityKg: 18.5 })
+      expect(mockPrisma.donationEvent.create.mock.calls[0][0].data).toMatchObject({
+        action: DonationAction.COLETADA,
+        actorLabel: 'Voluntário Carlos (link de campo)',
+      })
+      expect(notify).toHaveBeenCalledWith(DonationAction.COLETADA, 'd1', undefined)
+    })
+
+    it('sem informar quantidade, vale a estimada', async () => {
+      await service.collectStop('r1', 'd1', {})
+      expect(mockPrisma.donation.update.mock.calls[0][0].data.collectedQuantityKg).toBe(20)
+    })
+
+    it('só com a rota em andamento', async () => {
+      mockPrisma.pickupRoute.findUnique.mockResolvedValue({ ...route, status: PickupRouteStatus.PLANEJADA })
+      await expect(service.collectStop('r1', 'd1', {})).rejects.toBeInstanceOf(ValidationError)
+    })
+
+    it('parada de outra rota ou já resolvida é recusada', async () => {
+      mockPrisma.donation.findUnique.mockResolvedValue(stop({ routeId: 'outra' }))
+      await expect(service.collectStop('r1', 'd1', {})).rejects.toBeInstanceOf(NotFoundError)
+
+      mockPrisma.donation.findUnique.mockResolvedValue(stop({ status: DonationStatus.COLETADA }))
+      await expect(service.collectStop('r1', 'd1', {})).rejects.toThrow(/já foi resolvida/)
+    })
+
+    it('doador ausente: a doação sai da rota e volta a RESERVADA para reagendar, com o motivo guardado', async () => {
+      await service.failStop('r1', 'd1', { reason: PickupFailureReason.DOADOR_AUSENTE }, { userId: 'adm' })
+
+      const first = mockPrisma.donation.update.mock.calls[0][0].data
+      expect(first).toMatchObject({ status: DonationStatus.RESERVADA, routeId: null })
+      expect(mockPrisma.donation.update.mock.calls[1][0].data).toMatchObject({ pickupFailureReason: 'DOADOR_AUSENTE', failedRouteId: 'r1' })
+      expect(mockPrisma.donationEvent.create.mock.calls[0][0].data).toMatchObject({ action: DonationAction.COLETA_FALHOU, detail: 'Doador ausente' })
+      expect(notify).toHaveBeenCalledWith(DonationAction.COLETA_FALHOU, 'd1', 'adm', 'Doador ausente')
+    })
+
+    it('produto impróprio: cancela a doação', async () => {
+      await service.failStop('r1', 'd1', { reason: PickupFailureReason.PRODUTO_IMPROPRIO, note: 'cheiro forte' }, {})
+      expect(mockPrisma.donation.update.mock.calls[0][0].data).toMatchObject({ status: DonationStatus.CANCELADA, routeId: null })
+      expect(mockPrisma.donationEvent.create.mock.calls[0][0].data.detail).toBe('Produto impróprio para consumo (cheiro forte)')
+    })
+
+    it('"Outro" exige descrever o que aconteceu', async () => {
+      await expect(service.failStop('r1', 'd1', { reason: PickupFailureReason.OUTRO }, {})).rejects.toThrow(/Descreva/)
+    })
+
+    it('concluir a rota depois não repete o que já foi coletado', async () => {
+      mockPrisma.pickupRoute.findUnique.mockResolvedValue(route)
+      mockPrisma.donation.findMany.mockResolvedValue([])
+      await service.complete('r1', [], 'adm')
+      expect(mockPrisma.donation.findMany.mock.calls[0][0].where).toEqual({ routeId: 'r1', status: DonationStatus.AGENDADA })
     })
   })
 })

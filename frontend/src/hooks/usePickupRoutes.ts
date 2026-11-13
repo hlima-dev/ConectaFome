@@ -2,9 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   attachDonationToRoute,
   cancelPickupRoute,
+  collectRouteStop,
   completePickupRoute,
   createPickupRoute,
   detachDonationFromRoute,
+  failRouteStop,
   getPickupRoute,
   listPickupRoutes,
   startPickupRoute,
@@ -87,4 +89,12 @@ export function useCompleteRoute(id: string) {
 
 export function useCancelRoute(id: string) {
   return useRouteAction(() => cancelPickupRoute(id))
+}
+
+export function useCollectStop(routeId: string) {
+  return useRouteAction((input: { donationId: string; quantityKg?: number }) => collectRouteStop(routeId, input.donationId, input.quantityKg))
+}
+
+export function useFailStop(routeId: string) {
+  return useRouteAction((input: { donationId: string; reason: string; note?: string }) => failRouteStop(routeId, input.donationId, input.reason, input.note))
 }

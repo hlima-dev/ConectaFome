@@ -1,4 +1,4 @@
-import { DonationAction, DonationStatus, PickupRouteStatus } from '@prisma/client'
+import { DonationAction, DonationStatus, PickupFailureReason, PickupRouteStatus } from '@prisma/client'
 import { prisma } from '../config/prisma'
 import { NotFoundError, ValidationError } from '../utils/AppError'
 import { paginate, PaginationParams } from '../utils/pagination'
@@ -27,10 +27,26 @@ interface CollectedQuantityOverride {
   collectedQuantityKg: number
 }
 
+export interface StopActor {
+  userId?: string
+  // Quem agiu quando não é um usuário (voluntário pelo link de campo).
+  label?: string
+}
+
+export const FAILURE_LABELS: Record<PickupFailureReason, string> = {
+  DOADOR_AUSENTE: 'Doador ausente',
+  RECUSADO: 'Doador recusou entregar',
+  PRODUTO_IMPROPRIO: 'Produto impróprio para consumo',
+  SEM_ESPACO_NO_VEICULO: 'Sem espaço no veículo',
+  OUTRO: 'Outro motivo',
+}
+
 const routeInclude = {
   vehicle: true,
   volunteer: true,
   donations: { include: { donor: true, recipient: true } },
+  // Paradas que não deram certo nesta rota (a doação saiu da rota, mas o registro fica).
+  failedDonations: { include: { donor: true } },
 }
 
 type RouteWithRelations = {
@@ -167,7 +183,7 @@ export class PickupRouteService {
     }
 
     await prisma.$transaction([
-      ...donationTransition(donation, DonationAction.AGENDADA, { status: DonationStatus.AGENDADA, routeId }, actorId),
+      ...donationTransition(donation, DonationAction.AGENDADA, { status: DonationStatus.AGENDADA, routeId, pickupFailureReason: null, pickupFailureNote: null, pickupFailedAt: null, failedRouteId: null }, actorId),
     ])
     await this.notifications.onDonationEvent(DonationAction.AGENDADA, donationId, actorId)
 
@@ -239,7 +255,9 @@ export class PickupRouteService {
       throw new ValidationError('Só é possível concluir uma rota em andamento')
     }
 
-    const donations = await prisma.donation.findMany({ where: { routeId: id } })
+    // Paradas já coletadas ou que falharam uma a uma (collectStop/failStop) não
+    // são tocadas de novo: aqui só entram as que ainda estão agendadas.
+    const donations = await prisma.donation.findMany({ where: { routeId: id, status: DonationStatus.AGENDADA } })
     const overrideMap = new Map(overrides.map((o) => [o.donationId, o.collectedQuantityKg]))
     const collectedAt = new Date()
 
@@ -266,6 +284,78 @@ export class PickupRouteService {
       await this.notifications.onDonationEvent(DonationAction.COLETADA, donation.id, actorId)
     }
     return this.findById(id)
+  }
+
+  // Coleta de UMA parada (o voluntário chegou, conferiu e pegou). A doação vira
+  // COLETADA na hora; a rota continua em andamento até as outras serem resolvidas.
+  async collectStop(routeId: string, donationId: string, input: { quantityKg?: number }, actor: StopActor = {}) {
+    const donation = await this.getStopOrThrow(routeId, donationId)
+    if (input.quantityKg !== undefined && !(input.quantityKg > 0)) {
+      throw new ValidationError('Informe uma quantidade coletada maior que zero')
+    }
+
+    await prisma.$transaction([
+      ...donationTransition(
+        donation,
+        DonationAction.COLETADA,
+        {
+          status: DonationStatus.COLETADA,
+          collectedAt: new Date(),
+          collectedQuantityKg: input.quantityKg ?? donation.estimatedQuantityKg,
+        },
+        actor.userId,
+        { actorLabel: actor.label },
+      ),
+    ])
+    await this.notifications.onDonationEvent(DonationAction.COLETADA, donationId, actor.userId)
+    return this.findById(routeId)
+  }
+
+  // Parada que não deu certo. Doador ausente, falta de espaço ou outro motivo
+  // devolvem a doação para reagendar (volta a RESERVADA, fora da rota); produto
+  // impróprio ou recusado cancelam a doação. O motivo fica registrado.
+  async failStop(routeId: string, donationId: string, input: { reason: PickupFailureReason; note?: string }, actor: StopActor = {}) {
+    const donation = await this.getStopOrThrow(routeId, donationId)
+    const note = input.note?.trim() || undefined
+    if (input.reason === PickupFailureReason.OUTRO && !note) {
+      throw new ValidationError('Descreva o que aconteceu')
+    }
+
+    const cancels = input.reason === PickupFailureReason.RECUSADO || input.reason === PickupFailureReason.PRODUTO_IMPROPRIO
+    const detail = `${FAILURE_LABELS[input.reason]}${note ? ` (${note})` : ''}`
+
+    await prisma.$transaction([
+      ...donationTransition(
+        donation,
+        DonationAction.COLETA_FALHOU,
+        cancels
+          ? { status: DonationStatus.CANCELADA, canceledAt: new Date(), routeId: null }
+          : { status: DonationStatus.RESERVADA, routeId: null },
+        actor.userId,
+        { actorLabel: actor.label, detail },
+      ),
+      prisma.donation.update({
+        where: { id: donationId },
+        data: { pickupFailureReason: input.reason, pickupFailureNote: note ?? null, pickupFailedAt: new Date(), failedRouteId: routeId },
+      }),
+    ])
+    await this.notifications.onDonationEvent(DonationAction.COLETA_FALHOU, donationId, actor.userId, detail)
+    return this.findById(routeId)
+  }
+
+  private async getStopOrThrow(routeId: string, donationId: string) {
+    const route = await this.getOrThrow(routeId)
+    if (route.status !== PickupRouteStatus.EM_ANDAMENTO) {
+      throw new ValidationError('A rota precisa estar em andamento para registrar a coleta de uma parada')
+    }
+    const donation = await prisma.donation.findUnique({ where: { id: donationId } })
+    if (!donation || donation.routeId !== routeId) {
+      throw new NotFoundError('Doação não encontrada nessa rota')
+    }
+    if (donation.status !== DonationStatus.AGENDADA) {
+      throw new ValidationError('Esta parada já foi resolvida')
+    }
+    return donation
   }
 
   // Sem precedente no PRODUCTION ERP (o romaneio de lá não tem essa saída)

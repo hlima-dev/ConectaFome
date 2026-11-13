@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react'
 import { DataTable, type DataTableColumn } from '../../components/DataTable'
 import { StatusBadge } from '../../components/StatusBadge'
 import { ApprovalActions, ApprovalBadge } from '../../components/ApprovalControls'
+import { ResetLinkButton } from '../../components/ResetLinkButton'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useDeactivateRecipient, useRecipients } from '../../hooks/useRecipients'
 import { RECIPIENT_TYPE_LABELS } from '../../types/auth'
@@ -48,6 +49,7 @@ export function RecipientsPage() {
       className: 'text-right',
       cell: (r) => (
         <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
+          <ResetLinkButton userId={r.userId} name={r.name} />
           <ApprovalActions kind="recipients" id={r.id} name={r.name} status={r.user?.approvalStatus} />
           <button type="button" className="text-slate-500 hover:text-slate-900" onClick={() => setEditingRecipient(r)}>
             Editar

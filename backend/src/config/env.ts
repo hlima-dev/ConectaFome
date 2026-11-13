@@ -31,6 +31,16 @@ const envSchema = z.object({
   // Segredo do agendador externo (GitHub Actions) que chama /maintenance/run.
   // Sem ele, a rota fica desligada. Mínimo de 24 caracteres.
   CRON_SECRET: z.string().min(24, 'CRON_SECRET deve ter ao menos 24 caracteres').optional(),
+  // E-mail (opcional). Sem SMTP configurado o sistema funciona igual, só sem e-mail.
+  // Planos gratuitos que servem: Brevo (300/dia, remetente verificado por e-mail, sem
+  // domínio próprio), Gmail com senha de app, Mailjet. Veja o DEPLOY.md.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  // Teto de e-mails por evento (uma doação nova avisa todos os receptores da cidade).
+  EMAIL_MAX_PER_EVENT: z.coerce.number().int().min(1).default(30),
   APP_URL: z.string().url().default('http://localhost:5173'),
   // Geocodificação (endereço -> latitude/longitude) via Nominatim/OpenStreetMap.
   // Desligada nos testes. O serviço público limita a 1 requisição por segundo e

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { z } from 'zod'
-import { PickupRouteStatus } from '@prisma/client'
+import { PickupFailureReason, PickupRouteStatus } from '@prisma/client'
 import { PickupRouteService } from '../services/PickupRouteService'
 import { getPagination, successResponse } from '../utils/pagination'
 
@@ -17,6 +17,12 @@ const updateRouteSchema = createRouteSchema.partial()
 
 const attachDonationSchema = z.object({
   donationId: z.string().min(1, 'Informe a doação'),
+})
+
+const collectStopSchema = z.object({ quantityKg: z.coerce.number().positive().optional() })
+const failStopSchema = z.object({
+  reason: z.nativeEnum(PickupFailureReason),
+  note: z.string().max(300).optional(),
 })
 
 const completeRouteSchema = z.object({
@@ -87,5 +93,17 @@ export class PickupRouteController {
   async cancel(req: Request, res: Response): Promise<void> {
     const route = await pickupRouteService.cancel(String(req.params.id), req.user!.id)
     res.json(successResponse(route, 'Rota cancelada'))
+  }
+
+  async collectStop(req: Request, res: Response): Promise<void> {
+    const data = collectStopSchema.parse(req.body ?? {})
+    const route = await pickupRouteService.collectStop(String(req.params.id), String(req.params.donationId), data, { userId: req.user!.id })
+    res.json(successResponse(route, 'Parada coletada'))
+  }
+
+  async failStop(req: Request, res: Response): Promise<void> {
+    const data = failStopSchema.parse(req.body ?? {})
+    const route = await pickupRouteService.failStop(String(req.params.id), String(req.params.donationId), data, { userId: req.user!.id })
+    res.json(successResponse(route, 'Parada registrada como não coletada'))
   }
 }

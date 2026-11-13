@@ -15,6 +15,17 @@ export type DonationAction =
   | 'CONFIRMADA'
   | 'CANCELADA'
   | 'VENCIDA'
+  | 'COLETA_FALHOU'
+
+export type PickupFailureReason = 'DOADOR_AUSENTE' | 'RECUSADO' | 'PRODUTO_IMPROPRIO' | 'SEM_ESPACO_NO_VEICULO' | 'OUTRO'
+
+export const PICKUP_FAILURE_LABELS: Record<PickupFailureReason, string> = {
+  DOADOR_AUSENTE: 'Doador ausente',
+  RECUSADO: 'Doador recusou entregar',
+  PRODUTO_IMPROPRIO: 'Produto impróprio para consumo',
+  SEM_ESPACO_NO_VEICULO: 'Sem espaço no veículo',
+  OUTRO: 'Outro motivo',
+}
 
 export type DonationStatus =
   | 'DISPONIVEL'
@@ -59,6 +70,9 @@ export interface Donation {
   canceledAt: string | null
   expiredAt: string | null
   urgency: Urgency | null
+  pickupFailureReason?: PickupFailureReason | null
+  pickupFailureNote?: string | null
+  pickupFailedAt?: string | null
   notes: string | null
   createdAt: string
   updatedAt: string
@@ -76,6 +90,9 @@ export interface DonationEvent {
   toStatus: DonationStatus
   createdAt: string
   actor: { id: string; name: string; role: 'ADMIN' | 'DOADOR' | 'RECEPTOR' } | null
+  // Quem agiu quando não é usuário (ex.: voluntário pelo link de campo) e detalhe do evento.
+  actorLabel?: string | null
+  detail?: string | null
 }
 
 export interface DonationInput {
@@ -121,6 +138,7 @@ export const DONATION_ACTION_LABELS: Record<DonationAction, string> = {
   CONFIRMADA: 'Recebimento confirmado',
   CANCELADA: 'Cancelada',
   VENCIDA: 'Marcada como vencida',
+  COLETA_FALHOU: 'Coleta não realizada',
 }
 
 export const DONATION_STATUS_LABELS: Record<DonationStatus, string> = {

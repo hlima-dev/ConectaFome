@@ -15,6 +15,8 @@ router.patch('/:id', (req, res) => controller.update(req, res))
 router.post('/:id/donations', (req, res) => controller.attachDonation(req, res))
 router.delete('/:id/donations/:donationId', (req, res) => controller.detachDonation(req, res))
 router.patch('/:id/start', (req, res) => controller.start(req, res))
+router.patch('/:id/stops/:donationId/collect', (req, res) => controller.collectStop(req, res))
+router.patch('/:id/stops/:donationId/fail', (req, res) => controller.failStop(req, res))
 router.patch('/:id/complete', (req, res) => controller.complete(req, res))
 router.patch('/:id/cancel', (req, res) => controller.cancel(req, res))
 

@@ -12,6 +12,7 @@ export function donationTransition(
   action: DonationAction,
   data: TransitionData,
   actorId?: string,
+  extra: { actorLabel?: string; detail?: string } = {},
 ) {
   return [
     prisma.donation.update({ where: { id: donation.id }, data }),
@@ -22,6 +23,8 @@ export function donationTransition(
         fromStatus: donation.status,
         toStatus: data.status,
         actorId: actorId ?? null,
+        ...(extra.actorLabel ? { actorLabel: extra.actorLabel } : {}),
+        ...(extra.detail ? { detail: extra.detail } : {}),
       },
     }),
   ] as const
