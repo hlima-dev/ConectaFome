@@ -37,7 +37,7 @@ describe('DonationTimeline', () => {
 
   it('indica quando um passo não tem usuário registrado', () => {
     render(<DonationTimeline events={events} />)
-    expect(screen.getByText(/Sem usuário registrado/)).toBeInTheDocument()
+    expect(screen.getByText(/Sistema \(automático\)/)).toBeInTheDocument()
   })
 
   it('explica quando a doação não tem histórico', () => {
