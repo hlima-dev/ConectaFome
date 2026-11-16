@@ -65,7 +65,8 @@ const s3 = [
   ], [1900, 7171], { size: 19, firstColFill: true }),
   spacer(80),
   p('**Confiança e segurança:** CPF/CNPJ validado, aprovação de cada cadastro pela administração, vencimento automático de doações fora do prazo, reserva que volta ao painel se ninguém busca, recuperação de senha e controle de acesso por perfil.'),
-  p('**Alguns números do projeto:** cerca de 13 mil linhas de código TypeScript, 26 telas, 80 rotas de API, 12 tabelas e **549 testes automáticos** (309 do servidor, 105 de integração com banco real e 135 da interface).'),
+  p('**Quem vê o quê.** Cada perfil enxerga apenas as telas do seu trabalho. O **doador** vê as próprias doações; o **receptor** vê as oportunidades disponíveis e as doações que reservou; um não vê o cadastro completo do outro (só nome e cidade, sem CPF/CNPJ, endereço completo, telefone ou e-mail), e uma família atendida aparece como "Família atendida" no comprovante do doador. **Só a administração, que opera o sistema, vê tudo**: cadastros, rotas, voluntários, veículos e relatórios. A conta de administrador é separada: ela não pode ser criada pelo cadastro público.'),
+  p('**Alguns números do projeto:** cerca de 13 mil linhas de código TypeScript, 19 telas, 80 rotas de API, 12 tabelas e **549 testes automáticos** (309 do servidor, 105 de integração com banco real e 135 da interface).'),
 ]
 
 const s4 = [
@@ -76,7 +77,7 @@ const s4 = [
     ['Comida Invisível', 'Plataforma brasileira que conecta restaurantes e outros doadores (inclusive pessoas físicas) a ONGs. Em 2019: 350 restaurantes e 400 ONGs cadastrados; parceria com a Ambev em 2022', 'Conexão doador ↔ ONG, em escala nacional'],
     ['Connecting Food', 'Startup brasileira que mapeia ONGs no entorno de lojas de grandes redes para doar itens dentro da validade', 'Foco em grandes redes de varejo'],
     ['Food to Save', 'Aplicativo de "sacolas surpresa" que vende excedente com desconto', 'Modelo comercial: vende, não doa'],
-    ['Bancos de alimentos (ex.: Ceagesp)', 'Centrais que recebem e redistribuem alimentos', 'Recebem em ponto fixo, não organizam a coleta no doador'],
+    ['Bancos de alimentos (ex.: Ceagesp)', 'Centrais que recebem e redistribuem alimentos (reportagem de 2017 cita 160 toneladas por mês no banco da Ceagesp)', 'Modelo de central de distribuição'],
   ], [2000, 4571, 2500], { size: 18, firstColFill: true }),
   spacer(100),
   H2('O nosso diferencial'),
@@ -84,7 +85,7 @@ const s4 = [
   b('**A coleta faz parte do sistema.** Reserva, rota com voluntário e veículo, mapa, ordem das paradas e controle de carga, e não só a "vitrine" de doações.'),
   b('**Prova em cada etapa.** Foto do alimento ao ofertar, foto na coleta (pelo voluntário, sem cadastro, por um link da rota) e foto do recebimento, tudo no histórico.'),
   b('**Comprovante verificável.** Código DOA-00042 e QR code que leva a uma página pública de conferência (sem endereços nem documentos), útil para prestação de contas e ESG do doador.'),
-  b('**Pensado para o pequeno.** ONGs, coletivos e comércios de bairro, com custo de operação próximo de zero nos planos gratuitos, e **código aberto** para quem quiser adaptar ou rodar junto com redes já existentes.'),
+  b('**Pensado para o pequeno.** ONGs, coletivos e comércios de bairro, com custo de operação próximo de zero nos planos gratuitos e código versionado no GitHub, fácil de adaptar ou de rodar junto com redes já existentes.'),
   b('**Urgência e prazos automáticos.** Prioriza o que vence primeiro, vence sozinho o que passou do prazo e devolve ao painel a reserva que ninguém buscou.'),
   p('**Onde eles são melhores que nós:** escala, marca, parcerias com grandes empresas e equipes de campo. Somos um MVP acadêmico: nosso caminho é provar o modelo em escala local (piloto) e, se funcionar, operar junto com essas redes e não contra elas.', { before: 60 }),
 ]
@@ -103,7 +104,7 @@ const s5 = [
     ['API (back-end)', 'Render', 'Plano gratuito; configuração versionada no repositório (render.yaml)'],
     ['Banco de dados', 'Supabase (PostgreSQL)', 'Plano gratuito'],
     ['Fotos', 'Supabase Storage (bucket privado)', 'Ativadas quando o armazenamento está configurado; as imagens só saem pelo sistema, a quem tem permissão'],
-    ['Código e automações', 'GitHub e GitHub Actions', 'Versionamento, testes automáticos e a rotina que a cada 15 minutos vence prazos e mantém o servidor acordado'],
+    ['Código e automações', 'GitHub e GitHub Actions', 'Versionamento e testes automáticos a cada alteração. A rotina que, a cada 15 minutos, vence prazos e mantém o servidor acordado já está programada e passa a rodar quando os dois segredos do GitHub forem cadastrados'],
   ], [2300, 2700, 4071], { size: 18, firstColFill: true }),
 ]
 
@@ -111,7 +112,7 @@ const s6 = [
   H1('6. Principais desafios do desenvolvimento'),
   table(['Desafio', 'Como foi resolvido'], [
     ['Login que funcionava no computador e falhava no celular (navegadores bloqueiam cookies entre domínios diferentes)', 'O site passou a encaminhar a API pelo próprio domínio, o que torna o cookie "do mesmo site"'],
-    ['Limites dos planos gratuitos: servidor que "dorme", disco apagado a cada publicação, banco que pausa', 'Rotina agendada que acorda o servidor, fotos em armazenamento externo e backup manual documentado'],
+    ['Limites dos planos gratuitos: servidor que "dorme", disco apagado a cada publicação, banco que pausa', 'Rotina agendada (GitHub Actions) que acorda o servidor e vence prazos, fotos em armazenamento externo e backup manual documentado; a rotina e as fotos entram em operação quando a configuração é feita'],
     ['Duas ONGs reservando a mesma doação no mesmo instante', 'Atualização condicional no banco: uma vence, a outra recebe aviso. Testado com PostgreSQL real'],
     ['Confiança: qualquer pessoa poderia se cadastrar como ONG', 'Validação de CPF/CNPJ e aprovação de cada cadastro pela administração'],
     ['O voluntário não tem conta e precisa registrar a coleta com foto', 'Link por rota, que expira em 48 h e pode ser cancelado, com fotos por parada'],

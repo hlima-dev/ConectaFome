@@ -186,4 +186,79 @@ describe('navegação: busca, pendências e verificação do comprovante', () =>
       expect((await wrong.json()).message).toBe((await early.json()).message)
     })
   })
+
+  describe('privacidade entre perfis', () => {
+    let reservedId: string
+
+    it('cada parte vê só nome e cidade da outra; só a administração vê o cadastro completo', async () => {
+      const { generateTokenPair } = await import('../../src/utils/jwt')
+      const pw = await bcrypt.hash('Senha@12345', 4)
+      const donor = await prisma.donor.findFirstOrThrow({ where: { name: 'Padaria Central' } })
+      const recUser = await prisma.user.create({
+        data: {
+          name: 'Resp ONG', email: 'resp@ong.org', password: pw, role: Role.RECEPTOR,
+          recipientProfile: { create: { name: 'ONG Sigilosa', type: RecipientType.ONG, document: '22.333.444/0001-55', address: 'Av. Reservada, 500', city: 'Votorantim', phone: '(15) 98888-7777', email: 'contato@ongsigilosa.org' } },
+        },
+        include: { recipientProfile: true },
+      })
+      tokens.receptorsigiloso = generateTokenPair({ sub: recUser.id, role: Role.RECEPTOR }).accessToken
+      const d = await prisma.donation.create({
+        data: { donorId: donor.id, recipientId: recUser.recipientProfile!.id, description: 'Doação privada', estimatedQuantityKg: 5, pickupWindowStart: hours(-1), pickupWindowEnd: hours(30), status: DonationStatus.RESERVADA },
+      })
+      reservedId = d.id
+
+      const asDonor = (await (await call('GET', `/donations/${reservedId}`, 'doador')).json()).data
+      expect(asDonor.recipient.name).toBe('ONG Sigilosa')
+      for (const field of ['document', 'address', 'phone', 'email', 'latitude', 'peopleServed', 'userId']) {
+        expect(asDonor.recipient).not.toHaveProperty(field)
+      }
+
+      const asRecipient = (await (await call('GET', `/donations/${reservedId}`, 'receptorsigiloso')).json()).data
+      expect(asRecipient.donor.name).toBe('Padaria Central')
+      for (const field of ['document', 'address', 'phone', 'email', 'userId']) {
+        expect(asRecipient.donor).not.toHaveProperty(field)
+      }
+
+      const asAdmin = (await (await call('GET', `/donations/${reservedId}`, 'admin')).json()).data
+      expect(asAdmin.recipient.document).toBe('22.333.444/0001-55')
+      expect(asAdmin.donor.address).toBe('Rua Secreta, 99')
+    })
+
+    it('a lista também não vaza o cadastro completo', async () => {
+      const rows = (await (await call('GET', '/donations', 'doador')).json()).data.data as { recipient: Record<string, unknown> | null }[]
+      for (const row of rows) {
+        if (row.recipient) expect(row.recipient).not.toHaveProperty('document')
+      }
+    })
+
+    it('cada perfil só enxerga as telas e rotas do seu papel', async () => {
+      for (const path of ['/donors', '/recipients', '/volunteers', '/vehicles', '/pickup-routes', '/reports/summary', '/reports/pending']) {
+        expect((await call('GET', path, 'doador')).status).toBe(403)
+        expect((await call('GET', path, 'receptorsigiloso')).status).toBe(403)
+        expect((await call('GET', path, 'admin')).status).toBe(200)
+      }
+      // outro receptor não abre a doação alheia
+      const other = await prisma.user.create({ data: { name: 'Outro', email: 'outro@ong.org', password: await bcrypt.hash('x', 4), role: Role.RECEPTOR, recipientProfile: { create: { name: 'Outra ONG' } } } })
+      const { generateTokenPair } = await import('../../src/utils/jwt')
+      tokens.outro = generateTokenPair({ sub: other.id, role: Role.RECEPTOR }).accessToken
+      expect((await call('GET', `/donations/${reservedId}`, 'outro')).status).toBe(403)
+    })
+
+    it('o comprovante de uma família atendida não mostra o nome ao doador, mas a administração vê', async () => {
+      const id = ids['Macarrão da família']
+      const donorView = (await (await call('GET', `/donations/${id}/receipt`, 'doador')).json()).data
+      expect(donorView.recipient).toEqual({ name: 'Família atendida', document: null, address: null })
+      const adminView = (await (await call('GET', `/donations/${id}/receipt`, 'admin')).json()).data
+      expect(adminView.recipient.name).toBe('Família Silva')
+    })
+
+    it('não existe cadastro público de administrador', async () => {
+      const res = await fetch(`${base}/api/v1/auth/register`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Quero ser admin', email: 'admin2@x.org', password: 'Senha1234', role: 'ADMIN', donor: { name: 'x', document: '529.982.247-25' } }),
+      })
+      expect(res.status).toBe(422)
+      expect(await prisma.user.count({ where: { email: 'admin2@x.org' } })).toBe(0)
+    })
+  })
 })

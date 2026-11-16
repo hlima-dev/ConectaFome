@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { AddressInfo } from 'node:net'
 import type { Server } from 'node:http'
 import bcrypt from 'bcryptjs'
@@ -85,8 +85,11 @@ describe('confiança: documento, aprovação e manutenção', () => {
       pendingRecipientProfileId = profile.id
       expect(profile.document).toBe('11.222.333/0001-81')
 
-      const notes = await prisma.notification.findMany({ where: { userId: admin.id } })
-      expect(notes.some((n) => n.message.includes('aguardando aprovação') && n.link === '/receptores')).toBe(true)
+      // O aviso à administração é gravado em segundo plano (não atrasa o cadastro): espera aparecer.
+      await vi.waitFor(async () => {
+        const notes = await prisma.notification.findMany({ where: { userId: admin.id } })
+        expect(notes.some((n) => n.message.includes('aguardando aprovação') && n.link === '/receptores')).toBe(true)
+      }, { timeout: 3000, interval: 50 })
     })
 
     it('receptor pendente não reserva: 403 com mensagem de análise', async () => {

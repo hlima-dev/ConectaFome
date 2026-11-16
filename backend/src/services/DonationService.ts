@@ -1,4 +1,4 @@
-import { DonationAction, DonationStatus, FoodCategory, PhotoKind, Role, StorageCondition } from '@prisma/client'
+import { DonationAction, DonationStatus, FoodCategory, PhotoKind, RecipientType, Role, StorageCondition } from '@prisma/client'
 import { prisma } from '../config/prisma'
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/AppError'
 import { paginate, PaginationParams } from '../utils/pagination'
@@ -67,6 +67,15 @@ const OPPORTUNITIES_LIMIT = 500
 export class DonationService {
   private notifications = new NotificationService()
 
+  // O que cada perfil pode ver das outras partes da doação. A administração vê o cadastro
+  // completo; doador e receptor veem só o necessário para saber com quem estão tratando
+  // (nome e cidade), sem CPF/CNPJ, endereço completo, telefone ou e-mail um do outro.
+  private partiesFor(role: Role) {
+    if (role === Role.ADMIN) return { donor: true, recipient: true, route: true } as const
+    const party = { select: { id: true, name: true, city: true, state: true } } as const
+    return { donor: party, recipient: party, route: { select: { id: true, routeNumber: true, status: true } } } as const
+  }
+
   // Só a primeira foto da oferta (capa): a lista não precisa carregar todas.
   private coverPhoto = { where: { kind: PhotoKind.OFERTA }, select: { id: true }, orderBy: { createdAt: 'asc' as const }, take: 1 }
 
@@ -130,7 +139,7 @@ export class DonationService {
         skip: pagination.skip,
         take: pagination.limit,
         orderBy: filter.sort === 'prazo' ? [{ pickupWindowEnd: 'asc' as const }, { createdAt: 'desc' as const }] : { createdAt: 'desc' as const },
-        include: { donor: true, recipient: true, route: true, photos: this.coverPhoto },
+        include: { ...this.partiesFor(requester.role), photos: this.coverPhoto },
       }),
       prisma.donation.count({ where }),
     ])
@@ -156,7 +165,7 @@ export class DonationService {
   async findById(id: string, requester: Requester) {
     const donation = await prisma.donation.findUnique({
       where: { id },
-      include: { donor: true, recipient: true, route: true },
+      include: this.partiesFor(requester.role),
     })
     if (!donation) {
       throw new NotFoundError('Doação')
@@ -213,7 +222,13 @@ export class DonationService {
       verification: { code: donationCode(donation.number), signature: receiptSignature(donationCode(donation.number)) },
       issuedAt: new Date(),
       donor: party(donation.donor),
-      recipient: donation.recipient ? party(donation.recipient) : null,
+      // Para o doador, uma família atendida aparece sem nome, documento nem endereço (a
+      // administração, que coordena a operação, vê tudo).
+      recipient: donation.recipient
+        ? requester.role !== Role.ADMIN && donation.recipient.type === RecipientType.FAMILIA
+          ? { name: 'Família atendida', document: null, address: null }
+          : party(donation.recipient)
+        : null,
       donation: {
         description: donation.description,
         category: donation.category,
