@@ -17,6 +17,8 @@ export interface PendingReport {
   generatedAt: string
   total: number
   approvals: PendingGroup<{ kind: 'donor' | 'recipient'; id: string; name: string; waitingHours: number | null }>
+  // Pode faltar quando o front é atualizado antes do servidor.
+  volunteerApplications?: PendingGroup<{ id: string; name: string; city: string; waitingHours: number | null }>
   urgentAvailable: PendingGroup<PendingDonation>
   reservedWithoutRoute: PendingGroup<PendingDonation>
   awaitingConfirmation: PendingGroup<PendingDonation>

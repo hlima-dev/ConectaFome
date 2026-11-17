@@ -55,7 +55,7 @@ describe('middlewares/verifyCsrf', () => {
   })
 
   it('login, cadastro e recuperação de senha passam mesmo com um cookie CSRF antigo e sem cabeçalho', () => {
-    for (const url of ['/api/v1/auth/login', '/api/v1/auth/register', '/api/v1/auth/forgot-password', '/api/v1/auth/reset-password?x=1']) {
+    for (const url of ['/api/v1/auth/login', '/api/v1/auth/register', '/api/v1/auth/forgot-password', '/api/v1/auth/reset-password?x=1', '/api/v1/public/volunteers/apply']) {
       const req = fakeReq({ method: 'POST', originalUrl: url, cookies: { [CSRF_COOKIE]: 'cookie-antigo' } })
       const next = vi.fn()
       verifyCsrf(req, {} as Response, next)

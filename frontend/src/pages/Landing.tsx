@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Boxes, HandHeart, MapPinned, ReceiptText, Recycle, Soup, Sprout, Truck, Warehouse } from 'lucide-react'
 import { Logo } from '../components/Logo'
+import { VolunteerSignup } from '../components/VolunteerSignup'
 import heroImg from '../assets/landing/hero.webp'
 import correnteImg from '../assets/landing/corrente.webp'
 import voluntariosImg from '../assets/landing/voluntarios.webp'
@@ -38,6 +39,7 @@ export function Landing() {
             <a href="#sobre" className="hidden text-slate-600 hover:text-emerald-800 sm:inline">Sobre</a>
             <a href="#como-funciona" className="hidden text-slate-600 hover:text-emerald-800 sm:inline">Como funciona</a>
             <a href="#impacto" className="hidden text-slate-600 hover:text-emerald-800 sm:inline">Impacto</a>
+            <a href="#voluntarios" className="hidden text-slate-600 hover:text-emerald-800 md:inline">Voluntariado</a>
             <Link to="/login" className="font-medium text-slate-700 hover:text-emerald-800">Entrar</Link>
             <Link to="/cadastro" className="rounded-lg bg-emerald-800 px-4 py-2 font-semibold text-white hover:bg-emerald-900">
               Cadastrar-se
@@ -194,6 +196,8 @@ export function Landing() {
             </Link>
           </div>
         </section>
+
+        <VolunteerSignup />
       </main>
 
       <footer className="border-t border-emerald-100 py-8 text-center text-sm text-slate-500">

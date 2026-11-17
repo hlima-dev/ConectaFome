@@ -13,6 +13,7 @@ import { maintenanceRouter } from './maintenance.routes'
 import { fieldRouter } from './field.routes'
 import { publicRouter } from './public.routes'
 import { configRouter } from './config.routes'
+import { volunteerApplicationRouter } from './volunteer-applications.routes'
 
 const router = Router()
 
@@ -29,5 +30,6 @@ router.use('/maintenance', maintenanceRouter)
 router.use('/field', fieldRouter)
 router.use('/public', publicRouter)
 router.use('/config', configRouter)
+router.use('/volunteer-applications', volunteerApplicationRouter)
 
 export { router }

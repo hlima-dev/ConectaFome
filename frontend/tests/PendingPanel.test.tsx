@@ -12,7 +12,7 @@ vi.mock('../src/hooks/useReports', () => ({ usePending, useRunMaintenance: () =>
 const empty = { count: 0, items: [] }
 const report = (over: Record<string, unknown> = {}) => ({
   generatedAt: '2026-11-10T12:00:00Z', total: 0,
-  approvals: empty, urgentAvailable: empty, reservedWithoutRoute: empty, awaitingConfirmation: empty, overdueScheduled: empty, withoutPhoto: empty, routesToday: empty,
+  approvals: empty, volunteerApplications: empty, urgentAvailable: empty, reservedWithoutRoute: empty, awaitingConfirmation: empty, overdueScheduled: empty, withoutPhoto: empty, routesToday: empty,
   ...over,
 })
 
@@ -58,5 +58,25 @@ describe('PendingPanel (central de pendências)', () => {
     maintenance.data = { ranAt: 'x', expired: 2, released: 1 }
     renderPanel()
     expect(screen.getByText(/2 doação\(ões\) marcada\(s\) como vencida\(s\) e 1 reserva\(s\)/)).toBeInTheDocument()
+  })
+
+  it('mostra as inscrições de voluntários com o atalho para analisá-las', () => {
+    usePending.mockReturnValue({
+      isLoading: false,
+      data: report({ total: 1, volunteerApplications: { count: 2, items: [{ id: 'v1', name: 'Carlos Andrade', city: 'Sorocaba', waitingHours: 5 }] } }),
+    })
+    renderPanel()
+    expect(screen.getByRole('region', { name: 'Inscrições de voluntários' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Carlos Andrade' })).toHaveAttribute('href', '/voluntarios?aba=inscricoes')
+    expect(screen.getByRole('link', { name: 'Analisar inscrições' })).toHaveAttribute('href', '/voluntarios?aba=inscricoes')
+  })
+
+  it('tolera um servidor mais antigo, que ainda não envia as inscrições (atualização do site antes da API)', () => {
+    const full = report({ total: 1, approvals: { count: 1, items: [{ kind: 'recipient', id: 'r', name: 'ONG', waitingHours: 1 }] } })
+    const old = Object.fromEntries(Object.entries(full).filter(([key]) => key !== 'volunteerApplications'))
+    usePending.mockReturnValue({ data: old, isLoading: false })
+    renderPanel()
+    expect(screen.getByRole('region', { name: 'Cadastros aguardando aprovação' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Inscrições de voluntários' })).not.toBeInTheDocument()
   })
 })

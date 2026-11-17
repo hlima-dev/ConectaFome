@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { VolunteerApplications } from '../../components/VolunteerApplications'
+import { usePending } from '../../hooks/useReports'
 import { DataTable, type DataTableColumn } from '../../components/DataTable'
 import { StatusBadge } from '../../components/StatusBadge'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -9,6 +12,10 @@ import { VolunteerFormModal } from './VolunteerFormModal'
 import { getErrorMessage } from '../../utils/errors'
 
 export function VolunteersPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('aba') === 'inscricoes' ? 'inscricoes' : 'voluntarios'
+  const { data: pending } = usePending()
+  const pendingApplications = pending?.volunteerApplications?.count ?? 0
   const [includeInactive, setIncludeInactive] = useState(false)
   const [editing, setEditing] = useState<Volunteer | null>(null)
   const [creating, setCreating] = useState(false)
@@ -55,10 +62,39 @@ export function VolunteersPage() {
     },
   ]
 
+  const tabs = (
+    <div role="tablist" aria-label="Voluntários" className="mb-5 inline-flex rounded-xl bg-slate-100 p-1">
+      {([['voluntarios', 'Voluntários'], ['inscricoes', 'Inscrições']] as const).map(([id, text]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={tab === id}
+          onClick={() => setSearchParams(id === 'inscricoes' ? { aba: 'inscricoes' } : {}, { replace: true })}
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${tab === id ? 'bg-white text-emerald-800 shadow-sm ring-1 ring-emerald-200' : 'text-slate-500 hover:text-slate-800'}`}
+        >
+          {text}
+          {id === 'inscricoes' && pendingApplications > 0 && <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">{pendingApplications}</span>}
+        </button>
+      ))}
+    </div>
+  )
+
+  if (tab === 'inscricoes') {
+    return (
+      <div>
+        <h1 className="mb-4 text-2xl font-semibold text-slate-900">Voluntários</h1>
+        {tabs}
+        <VolunteerApplications />
+      </div>
+    )
+  }
+
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-slate-900">Voluntários</h1>
+      <h1 className="mb-4 text-2xl font-semibold text-slate-900">Voluntários</h1>
+      {tabs}
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
         <button
           type="button"
           onClick={() => setCreating(true)}

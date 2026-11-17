@@ -25,6 +25,14 @@ enum PhotoKind {
   ENTREGA
 }
 
+// Inscrição de quem quer ser voluntário (formulário público da página inicial). A
+// administração analisa; ao aprovar, a pessoa vira um Voluntário cadastrado.
+enum ApplicationStatus {
+  PENDENTE
+  APROVADA
+  RECUSADA
+}
+
 enum Role {
   ADMIN
   DOADOR
@@ -273,6 +281,35 @@ model Recipient {
 
 // ─── Logística ───
 
+model VolunteerApplication {
+  id String @id @default(cuid())
+
+  name         String
+  // Só dígitos, com DDD. É o meio de contato (WhatsApp).
+  phone        String
+  email        String?
+  city         String
+  // Quando pode ajudar: SEMANA_MANHA, SEMANA_TARDE, SEMANA_NOITE, FIM_DE_SEMANA.
+  availability String[]
+  hasVehicle   Boolean  @default(false)
+  message      String?  @db.Text
+  // Prova de que a pessoa concordou em ser contatada (LGPD). CPF NÃO é pedido aqui: a
+  // administração o informa só na aprovação.
+  consentAt    DateTime
+
+  status     ApplicationStatus @default(PENDENTE)
+  reviewNote String?
+  reviewedAt DateTime?
+
+  volunteerId String?    @unique
+  volunteer   Volunteer? @relation(fields: [volunteerId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@map("volunteer_applications")
+}
+
 model Volunteer {
   id       String  @id @default(cuid())
   name     String
@@ -280,7 +317,8 @@ model Volunteer {
   phone    String?
   active   Boolean @default(true)
 
-  routes PickupRoute[]
+  routes      PickupRoute[]
+  application VolunteerApplication?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

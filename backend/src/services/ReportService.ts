@@ -382,7 +382,7 @@ export class ReportService {
     const TOP = 5
     const HOUR = 3_600_000
 
-    const [pendingUsers, open, withoutPhoto, routes] = await Promise.all([
+    const [pendingUsers, open, withoutPhoto, routes, applications] = await Promise.all([
       prisma.user.findMany({
         where: { approvalStatus: ApprovalStatus.PENDENTE },
         orderBy: { createdAt: 'asc' },
@@ -411,6 +411,12 @@ export class ReportService {
         orderBy: { scheduledFor: 'asc' },
         select: { id: true, routeNumber: true, status: true, scheduledFor: true, volunteer: { select: { name: true } } },
         take: 50,
+      }),
+      prisma.volunteerApplication.findMany({
+        where: { status: 'PENDENTE' },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, name: true, city: true, createdAt: true },
+        take: 100,
       }),
     ])
 
@@ -453,8 +459,12 @@ export class ReportService {
     return {
       generatedAt: now,
       total:
-        approvals.length + urgentAvailable.length + reservedWithoutRoute.length + awaitingConfirmation.length + overdueScheduled.length + withoutPhoto.length,
+        approvals.length + applications.length + urgentAvailable.length + reservedWithoutRoute.length + awaitingConfirmation.length + overdueScheduled.length + withoutPhoto.length,
       approvals: { count: approvals.length, items: approvals.slice(0, TOP) },
+      volunteerApplications: {
+        count: applications.length,
+        items: applications.slice(0, TOP).map((a) => ({ id: a.id, name: a.name, city: a.city, waitingHours: hoursSince(a.createdAt) })),
+      },
       urgentAvailable: { count: urgentAvailable.length, items: urgentAvailable.slice(0, TOP).map(({ d, u }) => brief(d, { hoursLeft: u!.hoursLeft })) },
       reservedWithoutRoute: { count: reservedWithoutRoute.length, items: reservedWithoutRoute.slice(0, TOP).map((d) => brief(d, { waitingHours: hoursSince(d.matchedAt) })) },
       awaitingConfirmation: { count: awaitingConfirmation.length, items: awaitingConfirmation.slice(0, TOP).map((d) => brief(d, { waitingHours: hoursSince(d.collectedAt) })) },

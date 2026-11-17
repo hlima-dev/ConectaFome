@@ -58,6 +58,8 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((value) => (value === undefined ? true : value !== 'false')),
+  // Inscrições de voluntário (formulário público): no máximo isto por hora e por IP.
+  APPLY_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
   APP_URL: z.string().url().default('http://localhost:5173'),
   // Geocodificação (endereço -> latitude/longitude) via Nominatim/OpenStreetMap.
   // Desligada nos testes. O serviço público limita a 1 requisição por segundo e

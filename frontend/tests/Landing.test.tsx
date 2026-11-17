@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { Landing } from '../src/pages/Landing'
+
+vi.mock('../src/services/volunteerApplications', () => ({ applyAsVolunteer: vi.fn() }))
 
 const renderLanding = () => render(<MemoryRouter><Landing /></MemoryRouter>)
 
@@ -33,5 +35,12 @@ describe('Landing', () => {
   it('cita a fonte do único número que exibe', () => {
     renderLanding()
     expect(screen.getByText(/24,2% dos domicílios/)).toHaveTextContent(/IBGE, PNAD Contínua 2024/)
+  })
+
+  it('convida voluntários: link no menu e seção com o formulário de inscrição', () => {
+    renderLanding()
+    expect(screen.getByRole('link', { name: 'Voluntariado' })).toHaveAttribute('href', '#voluntarios')
+    expect(screen.getByRole('form', { name: 'Inscrição de voluntário' })).toBeInTheDocument()
+    expect(document.getElementById('voluntarios')).not.toBeNull()
   })
 })

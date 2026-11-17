@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { AlertTriangle, CheckCircle2, Clock, ImageOff, PackageCheck, RefreshCw, Route, UserCheck } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, HandHeart, ImageOff, PackageCheck, RefreshCw, Route, UserCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { usePending, useRunMaintenance } from '../hooks/useReports'
 import { formatTimeLeft } from '../utils/time'
@@ -62,6 +62,7 @@ const donationLine = (d: PendingDonation, extra?: string) => (
 export function PendingPanel() {
   const { data, isLoading, isError } = usePending()
   const maintenance = useRunMaintenance()
+  const applications = data?.volunteerApplications ?? { count: 0, items: [] }
 
   if (isLoading) return <p className="mt-6 text-sm text-slate-400">Verificando pendências...</p>
   if (isError || !data) return null
@@ -101,6 +102,15 @@ export function PendingPanel() {
               <li key={a.id} className="truncate">
                 <Link to={a.kind === 'donor' ? '/doadores?approval=PENDENTE' : '/receptores?approval=PENDENTE'} className="font-medium hover:underline">{a.name}</Link>
                 <span className="opacity-80"> · {a.kind === 'donor' ? 'doador' : 'receptor'} {waited(a.waitingHours)}</span>
+              </li>
+            ))}
+          </Group>
+
+          <Group icon={HandHeart} tone="amber" title="Inscrições de voluntários" help="Pessoas que querem ajudar nas coletas. Aprove para poder escolhê-las nas rotas." count={applications.count} to="/voluntarios?aba=inscricoes" linkLabel="Analisar inscrições">
+            {applications.items.map((a) => (
+              <li key={a.id} className="truncate">
+                <Link to="/voluntarios?aba=inscricoes" className="font-medium hover:underline">{a.name}</Link>
+                <span className="opacity-80"> · {a.city} {waited(a.waitingHours)}</span>
               </li>
             ))}
           </Group>

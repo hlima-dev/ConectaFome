@@ -9,6 +9,8 @@ const AUTH_ENTRY_PATHS = new Set([
   '/api/v1/auth/register',
   '/api/v1/auth/forgot-password',
   '/api/v1/auth/reset-password',
+  // Formulário público de voluntários: quem o envia não está logado e pode ter um cookie antigo.
+  '/api/v1/public/volunteers/apply',
 ])
 
 // Proteção CSRF por dupla submissão: o valor do cookie conectfome_csrf
