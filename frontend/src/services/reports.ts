@@ -1,18 +1,23 @@
 import { api } from './api'
 import type { MaintenanceResult, PendingReport } from '../types/pending'
-import type { ByDonorRow, ByRecipientRow, MonthlyKgRow, RatesReport, ReportPeriod, ReportSummary } from '../types/reports'
+import type { ByDonorRow, ByRecipientRow, MonthlyKgRow, RatesReport, ReportPeriod, ReportSummary, SeriesData } from '../types/reports'
 
 export async function getMonthlyKg(params?: { year?: number; donorId?: string; recipientId?: string }): Promise<MonthlyKgRow[]> {
   const response = await api.get('/reports/monthly-kg', { params })
   return response.data.data
 }
 
-export async function getByDonor(params?: { year?: number }): Promise<ByDonorRow[]> {
+export async function getSeries(params: { from: string; to: string; granularity: string; donorId?: string; recipientId?: string }): Promise<SeriesData> {
+  const response = await api.get('/reports/series', { params })
+  return response.data.data
+}
+
+export async function getByDonor(params?: { year?: number; from?: string; to?: string }): Promise<ByDonorRow[]> {
   const response = await api.get('/reports/by-donor', { params })
   return response.data.data
 }
 
-export async function getByRecipient(params?: { year?: number }): Promise<ByRecipientRow[]> {
+export async function getByRecipient(params?: { year?: number; from?: string; to?: string }): Promise<ByRecipientRow[]> {
   const response = await api.get('/reports/by-recipient', { params })
   return response.data.data
 }

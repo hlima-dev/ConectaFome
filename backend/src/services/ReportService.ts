@@ -4,6 +4,7 @@ import { photoPolicy } from '../storage/StorageDriver'
 import { computeUrgency } from '../utils/urgency'
 import { donationCode } from '../utils/donationCode'
 import { toCsv } from '../utils/csv'
+import { ValidationError } from '../utils/AppError'
 
 interface MonthlyKgFilter {
   year?: number
@@ -13,6 +14,58 @@ interface MonthlyKgFilter {
 
 interface ByGroupFilter {
   year?: number
+  // Período por data de coleta (AAAA-MM-DD, inclusivo, horário de Brasília). Tem
+  // prioridade sobre `year` quando informado.
+  from?: string
+  to?: string
+}
+
+export type Granularity = 'day' | 'week' | 'month'
+
+export interface SeriesFilter {
+  from: string
+  to: string
+  granularity: Granularity
+  donorId?: string
+  recipientId?: string
+}
+
+// As datas dos relatórios são dias no horário de Brasília (UTC-3; o Brasil não tem
+// horário de verão desde 2019). O banco guarda UTC, então o "dia" de uma coleta às
+// 22h de Brasília cai no dia seguinte em UTC: por isso o recorte é feito por aqui.
+const MAX_BUCKETS = 400
+
+export function brtDayRange(from: string, to: string) {
+  const gte = new Date(`${from}T00:00:00-03:00`)
+  const lt = new Date(new Date(`${to}T00:00:00-03:00`).getTime() + DAY_MS)
+  return { gte, lt }
+}
+
+const ymd = (d: Date) => d.toISOString().slice(0, 10)
+const parseDay = (value: string) => new Date(`${value}T00:00:00.000Z`)
+const addDays = (d: Date, n: number) => new Date(d.getTime() + n * DAY_MS)
+
+// Início (segunda-feira, como o date_trunc('week') do PostgreSQL) da semana da data.
+function mondayOf(d: Date) {
+  const weekday = (d.getUTCDay() + 6) % 7 // seg = 0
+  return addDays(d, -weekday)
+}
+
+// Todos os "baldes" do período, para o gráfico não ter buracos nos dias sem coleta.
+export function bucketStarts(from: string, to: string, granularity: Granularity): string[] {
+  const end = parseDay(to)
+  const out: string[] = []
+  if (granularity === 'day') {
+    for (let d = parseDay(from); d <= end; d = addDays(d, 1)) out.push(ymd(d))
+  } else if (granularity === 'week') {
+    for (let d = mondayOf(parseDay(from)); d <= end; d = addDays(d, 7)) out.push(ymd(d))
+  } else {
+    const start = parseDay(from)
+    for (let d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1)); d <= end; d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1))) {
+      out.push(ymd(d))
+    }
+  }
+  return out
 }
 
 // Período em datas inclusivas (AAAA-MM-DD, tratadas em UTC). Vazio = sem limite.
@@ -80,10 +133,52 @@ export class ReportService {
     }))
   }
 
+  // Série para o gráfico: kg e nº de doações coletadas por dia, semana ou mês, com os
+  // períodos sem coleta preenchidos com zero.
+  async series(filter: SeriesFilter) {
+    if (filter.from > filter.to) throw new ValidationError('A data inicial não pode ser depois da final')
+    const starts = bucketStarts(filter.from, filter.to, filter.granularity)
+    if (starts.length > MAX_BUCKETS) {
+      throw new ValidationError(`Período grande demais para esta escala (${starts.length} pontos). Use semanas ou meses.`)
+    }
+
+    const { gte, lt } = brtDayRange(filter.from, filter.to)
+    const conditions = [
+      Prisma.sql`status IN ('COLETADA', 'ENTREGUE')`,
+      Prisma.sql`"collectedAt" >= ${gte}`,
+      Prisma.sql`"collectedAt" < ${lt}`,
+    ]
+    if (filter.donorId) conditions.push(Prisma.sql`"donorId" = ${filter.donorId}`)
+    if (filter.recipientId) conditions.push(Prisma.sql`"recipientId" = ${filter.recipientId}`)
+
+    const rows = await prisma.$queryRaw<{ bucket: string; total_kg: number; donation_count: number }[]>(Prisma.sql`
+      SELECT to_char(date_trunc(${filter.granularity}::text, "collectedAt" - interval '3 hours'), 'YYYY-MM-DD') AS bucket,
+             SUM("collectedQuantityKg")::float AS total_kg,
+             COUNT(*)::int AS donation_count
+      FROM donations
+      WHERE ${Prisma.join(conditions, ' AND ')}
+      GROUP BY bucket
+    `)
+    const byBucket = new Map(rows.map((r) => [r.bucket, r]))
+
+    const points = starts.map((start) => {
+      const row = byBucket.get(start)
+      return { start, totalKg: Number(row?.total_kg ?? 0), donationCount: Number(row?.donation_count ?? 0) }
+    })
+    return {
+      from: filter.from,
+      to: filter.to,
+      granularity: filter.granularity,
+      totalKg: Math.round(points.reduce((sum, p) => sum + p.totalKg, 0) * 100) / 100,
+      donationCount: points.reduce((sum, p) => sum + p.donationCount, 0),
+      points,
+    }
+  }
+
   async byDonor(filter: ByGroupFilter = {}) {
     const grouped = await prisma.donation.groupBy({
       by: ['donorId'],
-      where: { status: { in: RESCUED_STATUSES }, ...this.yearRange(filter.year) },
+      where: { status: { in: RESCUED_STATUSES }, ...this.collectedRange(filter) },
       _sum: { collectedQuantityKg: true },
       _count: true,
     })
@@ -107,7 +202,7 @@ export class ReportService {
   async byRecipient(filter: ByGroupFilter = {}) {
     const grouped = await prisma.donation.groupBy({
       by: ['recipientId'],
-      where: { status: { in: RESCUED_STATUSES }, recipientId: { not: null }, ...this.yearRange(filter.year) },
+      where: { status: { in: RESCUED_STATUSES }, recipientId: { not: null }, ...this.collectedRange(filter) },
       _sum: { collectedQuantityKg: true },
       _count: true,
     })
@@ -260,6 +355,15 @@ export class ReportService {
         d.canceledAt,
       ]),
     )
+  }
+
+  // Período por data de coleta: from/to (dias de Brasília) ou, se faltarem, o ano.
+  private collectedRange(filter: ByGroupFilter) {
+    if (filter.from || filter.to) {
+      const { gte, lt } = brtDayRange(filter.from ?? '1970-01-01', filter.to ?? '2999-12-31')
+      return { collectedAt: { ...(filter.from ? { gte } : {}), ...(filter.to ? { lt } : {}) } }
+    }
+    return this.yearRange(filter.year)
   }
 
   private yearRange(year?: number) {

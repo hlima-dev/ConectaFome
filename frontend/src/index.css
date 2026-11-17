@@ -33,3 +33,21 @@ body {
     @apply focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500;
   }
 }
+
+/* Entrada suave dos cartões de relatório; some para quem prefere menos movimento. */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fade-up {
+    animation: fade-up 0.45s ease-out both;
+  }
+}

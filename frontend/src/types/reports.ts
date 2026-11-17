@@ -49,3 +49,20 @@ export interface ReportPeriod {
   from?: string
   to?: string
 }
+
+// Série do gráfico (GET /reports/series): um ponto por dia, semana ou mês, já com os
+// períodos sem coleta preenchidos com zero.
+export interface SeriesPoint {
+  start: string
+  totalKg: number
+  donationCount: number
+}
+
+export interface SeriesData {
+  from: string
+  to: string
+  granularity: 'day' | 'week' | 'month'
+  totalKg: number
+  donationCount: number
+  points: SeriesPoint[]
+}

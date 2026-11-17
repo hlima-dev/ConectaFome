@@ -9,6 +9,7 @@ const controller = new ReportController()
 router.use(authenticate, authorize(Role.ADMIN))
 
 router.get('/monthly-kg', (req, res) => controller.monthlyKg(req, res))
+router.get('/series', (req, res) => controller.series(req, res))
 router.get('/by-donor', (req, res) => controller.byDonor(req, res))
 router.get('/by-recipient', (req, res) => controller.byRecipient(req, res))
 router.get('/rates', (req, res) => controller.rates(req, res))

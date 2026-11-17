@@ -15,6 +15,20 @@ const periodQuerySchema = z
   .object({ from: isoDate.optional(), to: isoDate.optional() })
   .refine((p) => !p.from || !p.to || p.from <= p.to, { message: 'A data inicial não pode ser depois da final', path: ['from'] })
 
+const groupQuerySchema = yearQuerySchema.merge(
+  z.object({ from: isoDate.optional(), to: isoDate.optional() }),
+).refine((p) => !p.from || !p.to || p.from <= p.to, { message: 'A data inicial não pode ser depois da final', path: ['from'] })
+
+const seriesQuerySchema = z
+  .object({
+    from: isoDate,
+    to: isoDate,
+    granularity: z.enum(['day', 'week', 'month']).default('day'),
+    donorId: z.string().optional(),
+    recipientId: z.string().optional(),
+  })
+  .refine((p) => p.from <= p.to, { message: 'A data inicial não pode ser depois da final', path: ['from'] })
+
 const monthlyKgQuerySchema = yearQuerySchema.extend({
   donorId: z.string().optional(),
   recipientId: z.string().optional(),
@@ -27,14 +41,19 @@ export class ReportController {
     res.json(successResponse(result))
   }
 
+  async series(req: Request, res: Response): Promise<void> {
+    const filter = seriesQuerySchema.parse(req.query)
+    res.json(successResponse(await reportService.series(filter)))
+  }
+
   async byDonor(req: Request, res: Response): Promise<void> {
-    const filter = yearQuerySchema.parse(req.query)
+    const filter = groupQuerySchema.parse(req.query)
     const result = await reportService.byDonor(filter)
     res.json(successResponse(result))
   }
 
   async byRecipient(req: Request, res: Response): Promise<void> {
-    const filter = yearQuerySchema.parse(req.query)
+    const filter = groupQuerySchema.parse(req.query)
     const result = await reportService.byRecipient(filter)
     res.json(successResponse(result))
   }
