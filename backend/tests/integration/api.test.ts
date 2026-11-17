@@ -90,6 +90,16 @@ describe('API HTTP (Express + PostgreSQL reais)', () => {
   })
 
   describe('login com cookies e CSRF', () => {
+    it('login funciona mesmo com um cookie CSRF antigo no navegador (sessão que expirou)', async () => {
+      const res = await fetch(`${base}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: 'conectfome_csrf=cookie-antigo-de-outra-sessao' },
+        body: JSON.stringify({ email: 'doador@t.org', password: 'Senha@12345' }),
+      })
+      expect(res.status).toBe(200)
+      expect(res.headers.get('set-cookie')).toContain('conectfome_csrf=')
+    })
+
     it('login entrega cookies httpOnly e, numa escrita, exige o cabeçalho CSRF que bate com o cookie', async () => {
       const login = await fetch(`${base}/api/v1/auth/login`, {
         method: 'POST',

@@ -4,6 +4,13 @@ import { CSRF_COOKIE } from '../utils/authCookies'
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
+const AUTH_ENTRY_PATHS = new Set([
+  '/api/v1/auth/login',
+  '/api/v1/auth/register',
+  '/api/v1/auth/forgot-password',
+  '/api/v1/auth/reset-password',
+])
+
 // Proteção CSRF por dupla submissão: o valor do cookie conectfome_csrf
 // (httpOnly, setado no login) precisa bater com o header X-CSRF-Token que
 // o front ecoa a partir do que recebeu no corpo da resposta de login. Um
@@ -17,6 +24,16 @@ export function verifyCsrf(req: Request, res: Response, next: NextFunction): voi
 
   // Link de campo: autorizado pelo token no caminho, não por cookie — não há o que forjar.
   if ((req.originalUrl ?? req.path ?? '').startsWith('/api/v1/field/')) {
+    next()
+    return
+  }
+
+  // Entrada na conta: login, cadastro e recuperação de senha. Não dependem de sessão e
+  // são justamente o passo que CRIA os cookies novos. Sem esta exceção, um cookie CSRF
+  // antigo que ficou no navegador (a sessão expirou e o site só consegue limpar o que
+  // guarda localmente, não os cookies protegidos) travava o login com "Token CSRF
+  // inválido" até a pessoa limpar os cookies.
+  if (AUTH_ENTRY_PATHS.has((req.originalUrl ?? req.path ?? '').split('?')[0])) {
     next()
     return
   }
