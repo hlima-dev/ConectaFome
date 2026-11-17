@@ -1,5 +1,6 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Download, HeartHandshake, Store, X } from 'lucide-react'
-import { capitalizeFirst, defaultCustom, fromDay, includesToday, isFuture, periodLabel, rangeFor, toDay, type PeriodMode, type PeriodRange } from '../../utils/period'
+import { Download, HeartHandshake, Store, X } from 'lucide-react'
+import { ModeSwitch, PeriodNavigator } from './PeriodControls'
+import { defaultCustom, fromDay, includesToday, shiftRef, toDay, type PeriodMode, type PeriodRange } from '../../utils/period'
 
 export interface PeriodState {
   mode: PeriodMode
@@ -28,12 +29,7 @@ interface Props {
   today?: Date
 }
 
-const MODES: { id: PeriodMode; label: string }[] = [
-  { id: 'semana', label: 'Semana' },
-  { id: 'mes', label: 'Mês' },
-  { id: 'ano', label: 'Ano' },
-  { id: 'personalizado', label: 'Personalizado' },
-]
+const MODES: PeriodMode[] = ['semana', 'mes', 'ano', 'personalizado']
 
 const PRESETS = [
   { label: 'Últimos 7 dias', days: 7 },
@@ -65,16 +61,10 @@ function Select({ label, icon: Icon, value, options, onChange }: { label: string
 // por doador e receptor.
 export function PeriodFilter({ value, range, donors = [], recipients = [], onChange, onExport, exporting, invalidPeriod, today = new Date() }: Props) {
   const fixed = value.mode !== 'personalizado'
-  const nextRef = fixed ? rangeFor(value.mode, value.ref) : null
-  // "Próximo" fica desligado quando o período atual já contém hoje (não há futuro a mostrar).
-  const atPresent = fixed && nextRef !== null && (includesToday(nextRef, today) || isFuture(nextRef, today))
   const filtersActive = (value.donorId ? 1 : 0) + (value.recipientId ? 1 : 0)
 
   function move(direction: 1 | -1) {
-    const r = value.ref
-    const next =
-      value.mode === 'semana' ? addDays(r, 7 * direction) : value.mode === 'mes' ? new Date(r.getFullYear(), r.getMonth() + direction, 1) : new Date(r.getFullYear() + direction, 0, 1)
-    onChange({ ref: next })
+    onChange({ ref: shiftRef(value.mode, value.ref, direction) })
   }
 
   function setMode(mode: PeriodMode) {
@@ -85,23 +75,7 @@ export function PeriodFilter({ value, range, donors = [], recipients = [], onCha
   return (
     <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Período e filtros dos relatórios">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="radiogroup" aria-label="Escala do período" className="inline-flex rounded-xl bg-slate-100 p-1">
-          {MODES.map((m) => {
-            const active = value.mode === m.id
-            return (
-              <button
-                key={m.id}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setMode(m.id)}
-                className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition-all duration-200 ${active ? 'bg-white text-emerald-800 shadow-sm ring-1 ring-emerald-200' : 'text-slate-500 hover:text-slate-800'}`}
-              >
-                {m.label}
-              </button>
-            )
-          })}
-        </div>
+        <ModeSwitch modes={MODES} value={value.mode} onChange={setMode} />
 
         <button
           type="button"
@@ -116,18 +90,7 @@ export function PeriodFilter({ value, range, donors = [], recipients = [], onCha
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {fixed ? (
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
-            <button type="button" aria-label="Período anterior" onClick={() => move(-1)} className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-white hover:text-emerald-800 hover:shadow-sm">
-              <ChevronLeft size={18} aria-hidden="true" />
-            </button>
-            <p className="flex min-w-[12rem] items-center justify-center gap-2 px-2 text-center text-sm font-semibold text-slate-900" aria-live="polite">
-              <CalendarDays size={16} className="text-emerald-700" aria-hidden="true" />
-              {capitalizeFirst(periodLabel(value.mode, range))}
-            </p>
-            <button type="button" aria-label="Próximo período" disabled={atPresent} onClick={() => move(1)} className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-white hover:text-emerald-800 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent">
-              <ChevronRight size={18} aria-hidden="true" />
-            </button>
-          </div>
+          <PeriodNavigator mode={value.mode} range={range} onMove={move} today={today} />
         ) : (
           <div className="flex flex-wrap items-end gap-3">
             <div>

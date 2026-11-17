@@ -1,10 +1,14 @@
 import { Link } from 'react-router-dom'
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useMemo, useState } from 'react'
+import { Cell, Pie, PieChart } from 'recharts'
 import { Boxes, HeartHandshake, Leaf, PackageCheck, Store, Truck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { getStoredUser } from '../services/auth'
 import { ROLE_LABELS } from '../types/auth'
-import { useMonthlyKg, useReportSummary } from '../hooks/useReports'
+import { useReportSummary, useSeries } from '../hooks/useReports'
+import { KgChart } from '../components/reports/KgChart'
+import { ModeSwitch, PeriodNavigator } from '../components/reports/PeriodControls'
+import { rangeFor, shiftRef, type PeriodMode } from '../utils/period'
 import { DONATION_STATUS_LABELS, type DonationStatus } from '../types/donations'
 import { formatKg } from '../utils/format'
 import { PendingPanel } from '../components/PendingPanel'
@@ -45,14 +49,18 @@ const STATUS_COLORS: Record<DonationStatus, string> = {
   VENCIDA: '#f59e0b',
 }
 
-const currentYear = new Date().getFullYear()
-const formatMonth = (value: string) => new Date(value).toLocaleDateString('pt-BR', { month: 'short', timeZone: 'UTC' })
+const DASHBOARD_MODES: PeriodMode[] = ['semana', 'mes', 'ano']
 
 export function Dashboard() {
   const user = getStoredUser()
   const isAdmin = user?.role === 'ADMIN'
   const { data: summary, isLoading } = useReportSummary({ enabled: isAdmin })
-  const { data: monthly } = useMonthlyKg({ year: currentYear })
+  // Gráfico de kg resgatado do painel: semana, mês ou ano, com setas. Abre no ano (a visão
+  // que costuma ter dados); os Relatórios têm o filtro completo.
+  const [mode, setMode] = useState<PeriodMode>('ano')
+  const [ref, setRef] = useState(() => new Date())
+  const range = useMemo(() => rangeFor(mode, ref), [mode, ref])
+  const { data: series, isLoading: loadingSeries } = useSeries(isAdmin ? { from: range.from, to: range.to, granularity: range.granularity } : null)
 
   const statusData = (Object.keys(STATUS_COLORS) as DonationStatus[])
     .map((status) => ({ status, name: DONATION_STATUS_LABELS[status], value: summary?.donationsByStatus?.[status] ?? 0 }))
@@ -103,26 +111,13 @@ export function Dashboard() {
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
-            <section className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-3" aria-labelledby="dash-monthly">
-              <h2 id="dash-monthly" className="mb-4 text-base font-semibold text-slate-900">
-                Kg resgatado por mês ({currentYear})
-              </h2>
-              {!monthly || monthly.length === 0 ? (
-                <p className="text-sm text-slate-400">Nenhuma doação resgatada neste ano ainda.</p>
-              ) : (
-                <div style={{ width: '100%', height: 240 }}>
-                  <ResponsiveContainer>
-                    <BarChart data={monthly.map((m) => ({ ...m, label: formatMonth(m.month) }))} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={{ stroke: '#cbd5e1' }} />
-                      <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={{ stroke: '#cbd5e1' }} />
-                      <Tooltip formatter={(value: number) => [formatKg(value), 'Resgatado']} contentStyle={{ borderRadius: 8, fontSize: 13 }} />
-                      <Bar dataKey="totalKg" fill="#047857" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </section>
+            <div className="lg:col-span-3">
+              <div className="mb-3 flex flex-wrap items-center gap-3">
+                <ModeSwitch modes={DASHBOARD_MODES} value={mode} onChange={(next) => { setMode(next); setRef(new Date()) }} />
+                <PeriodNavigator mode={mode} range={range} onMove={(direction) => setRef((r) => shiftRef(mode, r, direction))} />
+              </div>
+              <KgChart series={series} previous={undefined} mode={mode} loading={loadingSeries} compare={false} compact />
+            </div>
 
             <section className="rounded-xl border border-slate-200 bg-white p-5 lg:col-span-2" aria-labelledby="dash-status">
               <h2 id="dash-status" className="mb-4 text-base font-semibold text-slate-900">

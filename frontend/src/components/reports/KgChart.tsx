@@ -12,6 +12,8 @@ interface Props {
   mode: PeriodMode
   loading: boolean
   compare: boolean
+  // Versão para o Painel: sem o resumo em cartões (o painel já tem os seus) e sem a tabela.
+  compact?: boolean
   today?: Date
 }
 
@@ -98,7 +100,7 @@ function ChartTooltip({ active, payload, compare }: TooltipProps) {
 // Gráfico de kg resgatado por dia, semana ou mês: resumo do período no topo (total com
 // comparação, média, melhor ponto e nº de coletas), gráfico com barras ou área, linha da
 // média, destaque do pico e o período anterior ao fundo.
-export function KgChart({ series, previous, mode, loading, compare, today = new Date() }: Props) {
+export function KgChart({ series, previous, mode, loading, compare, compact = false, today = new Date() }: Props) {
   const [type, setType] = useState<'bar' | 'area'>('bar')
   const todayKey = toDay(today)
 
@@ -144,6 +146,7 @@ export function KgChart({ series, previous, mode, loading, compare, today = new 
 
   return (
     <section className="mb-6" aria-labelledby="kg-chart-title">
+      {!compact && (
       <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Tile icon={Sprout} tone="bg-emerald-100 text-emerald-700" label="Kg resgatado" hint={comparing ? <Delta current={total} previous={previous!.totalKg} /> : undefined}>
           <span aria-label={formatKg(total)}>{formatKg(Math.round(shownTotal * 10) / 10)}</span>
@@ -158,6 +161,7 @@ export function KgChart({ series, previous, mode, loading, compare, today = new 
           {series.donationCount}
         </Tile>
       </div>
+      )}
 
       <div className="fade-up rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -182,13 +186,13 @@ export function KgChart({ series, previous, mode, loading, compare, today = new 
         </div>
 
         {isEmpty && !comparing ? (
-          <div className="flex h-72 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 text-center">
+          <div className={`flex ${compact ? 'h-56' : 'h-72'} flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 text-center`}>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><Sprout size={26} aria-hidden="true" /></span>
             <p className="font-medium text-slate-700">Nenhuma coleta neste período</p>
             <p className="max-w-xs text-sm text-slate-500">Escolha outro período ou limpe os filtros de doador e receptor para ver o que foi resgatado.</p>
           </div>
         ) : (
-          <div className="h-80 w-full" role="img" aria-label={`Gráfico de kg resgatado por ${unit.singular}: total de ${formatKg(total)}${peak ? `, melhor ${unit.singular} com ${formatKg(peak.kg)}` : ''}.`}>
+          <div className={`${compact ? 'h-64' : 'h-80'} w-full`} role="img" aria-label={`Gráfico de kg resgatado por ${unit.singular}: total de ${formatKg(total)}${peak ? `, melhor ${unit.singular} com ${formatKg(peak.kg)}` : ''}.`}>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={rows} margin={{ top: 16, right: 12, left: -8, bottom: 0 }}>
                 <defs>
@@ -223,6 +227,7 @@ export function KgChart({ series, previous, mode, loading, compare, today = new 
           </div>
         )}
 
+        {!compact && (
         <details className="mt-4 text-sm">
           <summary className="cursor-pointer select-none text-xs font-medium text-slate-500 hover:text-slate-800">Ver os dados em tabela</summary>
           <div className="mt-2 max-h-64 overflow-auto rounded-lg border border-slate-100">
@@ -246,8 +251,9 @@ export function KgChart({ series, previous, mode, loading, compare, today = new 
             </table>
           </div>
         </details>
+        )}
       </div>
-      {includesToday({ from: series.from, to: series.to, granularity: series.granularity }, today) && (
+      {!compact && includesToday({ from: series.from, to: series.to, granularity: series.granularity }, today) && (
         <p className="mt-2 text-xs text-slate-400">Período em andamento: a média considera só os {unit.plural} que já passaram.</p>
       )}
     </section>

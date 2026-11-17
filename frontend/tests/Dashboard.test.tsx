@@ -1,20 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { Dashboard } from '../src/pages/Dashboard'
 
 const getStoredUser = vi.hoisted(() => vi.fn())
 const useReportSummary = vi.hoisted(() => vi.fn())
-const useMonthlyKg = vi.hoisted(() => vi.fn())
+const useSeries = vi.hoisted(() => vi.fn())
 
 vi.mock('../src/services/auth', () => ({ getStoredUser }))
-vi.mock('../src/hooks/useReports', () => ({ useReportSummary, useMonthlyKg }))
+vi.mock('../src/hooks/useReports', () => ({ useReportSummary, useSeries }))
+// O gráfico de kg tem testes próprios (KgChart.test); aqui só importa que o painel o monte com o período certo.
+vi.mock('../src/components/reports/KgChart', () => ({ KgChart: (props: { mode: string; compact?: boolean }) => <div data-testid="kg-chart" data-mode={props.mode} data-compact={String(!!props.compact)} /> }))
 // A fila de pendências e os primeiros passos têm testes próprios; aqui só importa se aparecem.
 vi.mock('../src/components/PendingPanel', () => ({ PendingPanel: () => <div data-testid="pending-panel" /> }))
 vi.mock('../src/components/GettingStarted', () => ({ GettingStarted: ({ role }: { role?: string }) => <div data-testid="getting-started">{role}</div> }))
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  BarChart: () => <div data-testid="bar-chart" />, Bar: () => null, CartesianGrid: () => null, Tooltip: () => null, XAxis: () => null, YAxis: () => null,
   PieChart: () => <div data-testid="pie-chart" />, Pie: () => null, Cell: () => null,
 }))
 
@@ -28,7 +30,7 @@ const renderDashboard = () => render(<MemoryRouter><Dashboard /></MemoryRouter>)
 describe('Dashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useMonthlyKg.mockReturnValue({ data: [{ month: '2026-10-01T00:00:00Z', totalKg: 32, donationCount: 1 }] })
+    useSeries.mockReturnValue({ data: { from: '2026-01-01', to: '2026-12-31', granularity: 'month', totalKg: 32, donationCount: 1, points: [] }, isLoading: false })
   })
 
   describe('administrador', () => {
@@ -49,7 +51,7 @@ describe('Dashboard', () => {
       expect(screen.getByText('248 kg')).toBeInTheDocument()
       expect(screen.getByText('Doadores ativos')).toBeInTheDocument()
       expect(screen.getByText('Receptores ativos')).toBeInTheDocument()
-      expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
+      expect(screen.getByTestId('kg-chart')).toBeInTheDocument()
       expect(screen.getByTestId('pie-chart')).toBeInTheDocument()
     })
 
@@ -61,11 +63,26 @@ describe('Dashboard', () => {
       expect(screen.queryByText('Cancelada')).not.toBeInTheDocument()
     })
 
-    it('sem doações resgatadas no ano, explica em vez de mostrar um gráfico vazio', () => {
-      useMonthlyKg.mockReturnValue({ data: [] })
+    it('o gráfico de kg abre no ano, na versão compacta, e consulta por mês', () => {
       renderDashboard()
-      expect(screen.getByText(/nenhuma doação resgatada neste ano/i)).toBeInTheDocument()
-      expect(screen.queryByTestId('bar-chart')).not.toBeInTheDocument()
+      expect(screen.getByTestId('kg-chart')).toHaveAttribute('data-mode', 'ano')
+      expect(screen.getByTestId('kg-chart')).toHaveAttribute('data-compact', 'true')
+      const year = new Date().getFullYear()
+      expect(useSeries).toHaveBeenLastCalledWith({ from: `${year}-01-01`, to: `${year}-12-31`, granularity: 'month' })
+    })
+
+    it('troca para semana e mês e anda para o período anterior', async () => {
+      const user = userEvent.setup()
+      renderDashboard()
+      await user.click(screen.getByRole('radio', { name: 'Semana' }))
+      expect(screen.getByTestId('kg-chart')).toHaveAttribute('data-mode', 'semana')
+      expect(useSeries.mock.lastCall![0]).toMatchObject({ granularity: 'day' })
+
+      const before = useSeries.mock.lastCall![0].from
+      await user.click(screen.getByRole('button', { name: 'Período anterior' }))
+      expect(useSeries.mock.lastCall![0].from < before).toBe(true)
+      // sem filtros de doador/receptor, comparação nem datas livres: isso é nos Relatórios
+      expect(screen.queryByRole('radio', { name: 'Personalizado' })).not.toBeInTheDocument()
     })
 
     it('sem doações, o gráfico de status também explica', () => {
@@ -87,6 +104,8 @@ describe('Dashboard', () => {
     expect(screen.getByRole('link', { name: 'Oportunidades' })).toHaveAttribute('href', '/oportunidades')
     expect(screen.getByRole('link', { name: 'Doações' })).toHaveAttribute('href', '/doacoes')
     expect(screen.queryByTestId('pie-chart')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('kg-chart')).not.toBeInTheDocument()
+    expect(useSeries).toHaveBeenLastCalledWith(null) // só a administração consulta a série
   })
 
   it('doador só vê o caminho para as suas doações', () => {
